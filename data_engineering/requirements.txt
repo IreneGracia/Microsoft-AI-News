@@ -1,0 +1,9 @@
+feedparser==6.0.12
+beautifulsoup4
+nltk
+spacy
+bertopic
+sentence-transformers
+pandas
+scikit-learn
+umap-learn
