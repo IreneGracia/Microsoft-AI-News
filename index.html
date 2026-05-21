@@ -1,0 +1,3548 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<script>
+(function(){const RO=window.ResizeObserver;if(RO){window.ResizeObserver=class extends RO{constructor(cb){super((e,o)=>{window.requestAnimationFrame(()=>{try{cb(e,o);}catch(x){}});});}};}window.addEventListener('error',(e)=>{if(e.message&&e.message.indexOf('ResizeObserver')!==-1){e.stopImmediatePropagation();e.preventDefault();return false;}},true);})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MAI — Tech news, made yours.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=DM+Serif+Display:ital@0;1&family=Inter+Tight:wght@300;400;450;500;600&family=Bricolage+Grotesque:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600&family=Major+Mono+Display&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font-family: 'Inter Tight', system-ui, -apple-system, Segoe UI, sans-serif;
+  background: #1a1a1a;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+button { font-family: inherit; cursor: pointer; }
+kbd {
+  font: inherit; font-size: 11px; padding: 1px 5px;
+  border: 1px solid rgba(0,0,0,0.18); border-radius: 4px;
+  background: rgba(255,255,255,0.5);
+}
+
+/* ---------- Shell layout ---------- */
+.shell {
+  position: relative;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  overflow: hidden;
+}
+
+/* ---------- Backdrop (fixed warm grainy gradient) ---------- */
+.backdrop {
+  position: absolute; inset: 0; z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.bd-base { position: absolute; inset: 0; }
+.bd-blobs { position: absolute; inset: -10%; }
+.blob {
+  position: absolute;
+  width: 55vmax; height: 55vmax;
+  border-radius: 50%;
+  opacity: 0.55;
+  mix-blend-mode: multiply;
+  will-change: transform;
+}
+.b1 { top: -20%; left: -10%; animation: drift1 26s ease-in-out infinite alternate; }
+.b2 { top: 10%; right: -25%; animation: drift2 32s ease-in-out infinite alternate; opacity: 0.45; }
+.b3 { bottom: -30%; left: 20%; animation: drift3 30s ease-in-out infinite alternate; opacity: 0.5; }
+.b4 { bottom: -10%; right: -10%; animation: drift4 36s ease-in-out infinite alternate; opacity: 0.4; }
+@keyframes drift1 { from { transform: translate(0,0) scale(1); } to { transform: translate(8%, 6%) scale(1.1); } }
+@keyframes drift2 { from { transform: translate(0,0) scale(1.05); } to { transform: translate(-10%, 8%) scale(0.95); } }
+@keyframes drift3 { from { transform: translate(0,0) scale(1); } to { transform: translate(6%, -8%) scale(1.08); } }
+@keyframes drift4 { from { transform: translate(0,0) scale(0.95); } to { transform: translate(-6%, -4%) scale(1.05); } }
+
+.bd-grain {
+  position: absolute; inset: 0;
+  background-repeat: repeat;
+  mix-blend-mode: multiply;
+  opacity: 1;
+}
+.bd-vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.18) 100%);
+  pointer-events: none;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  position: relative;
+  z-index: 2;
+  border-right: 1px solid rgba(0,0,0,0.07);
+  background: rgba(255,253,247,0.32);
+  backdrop-filter: blur(20px) saturate(1.05);
+  -webkit-backdrop-filter: blur(20px) saturate(1.05);
+  display: flex; flex-direction: column;
+  padding: 18px 14px 12px;
+  gap: 10px;
+}
+.side-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 6px 14px;
+}
+.brand {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 26px;
+  letter-spacing: 0.5px;
+  font-weight: 400;
+}
+
+/* ---------- Wordmark: MAI news ---------- */
+.wordmark { display: inline-flex; align-items: baseline; gap: 6px; }
+.wm-mai { line-height: 0.9; letter-spacing: 0.02em; }
+.wm-news {
+  letter-spacing: -0.01em;
+  font-weight: 600;
+  font-style: italic;
+  position: relative;
+  top: -0.18em;
+  text-transform: lowercase;
+}
+.new-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,253,247,0.6);
+  border: 1px solid;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  transition: background 0.2s;
+}
+.new-btn:hover { background: rgba(255,253,247,0.9); }
+
+.side-section-label {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 8px 10px 4px;
+}
+.thread-list { list-style: none; margin: 0; padding: 0; flex: 1; overflow-y: auto; }
+.thread-row { position: relative; }
+.thread-item {
+  display: flex; flex-direction: column; align-items: flex-start;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 9px 46px 9px 10px;
+  border-radius: 10px;
+  text-align: left;
+  font-size: 13.5px;
+  margin-bottom: 2px;
+  transition: background 0.15s;
+}
+.thread-item:hover { background: rgba(255,253,247,0.45); }
+.thread-item.active { background: rgba(255,253,247,0.7); }
+.t-title {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  width: 100%;
+  font-weight: 450;
+}
+.t-time { font-size: 11px; margin-top: 2px; }
+.t-pin-mark { font-size: 10px; margin-right: 4px; opacity: 0.6; }
+.thread-acts {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  display: flex; gap: 2px; opacity: 0; pointer-events: none;
+  transition: opacity 0.12s;
+}
+.thread-row:hover .thread-acts { opacity: 1; pointer-events: auto; }
+.t-act {
+  background: none; border: none; cursor: pointer;
+  width: 22px; height: 22px; border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.1s;
+}
+.t-act:hover { background: rgba(0,0,0,0.09); }
+
+.side-foot {
+  border-top: 1px solid;
+  padding: 12px 8px 4px;
+  font-size: 12px;
+}
+.user-row { display: flex; align-items: center; gap: 10px; }
+.avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-family: 'Instrument Serif', serif;
+  font-size: 18px;
+  text-transform: lowercase;
+}
+.user-meta { font-size: 12px; display: flex; flex-direction: column; gap: 2px; }
+.user-meta > div { line-height: 1.3; }
+.user-meta > div:first-child { font-weight: 500; font-size: 13px; }
+
+/* ---------- Main area ---------- */
+.main {
+  position: relative; z-index: 1;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+  overflow: hidden;
+}
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 32px 10px;
+  font-size: 13px;
+}
+.crumb { font-size: 13px; letter-spacing: 0.01em; display: flex; align-items: center; gap: 12px; }
+.crumb-tag {
+  font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+  border: 1px solid; padding: 4px 10px; border-radius: 999px;
+  background: rgba(255,253,247,0.4);
+}
+.crumb-title { font-size: 14px; font-weight: 450; }
+.topbar-right { display: flex; gap: 4px; }
+.ghost-btn {
+  background: transparent;
+  border: 0;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  border-radius: 999px;
+  color: inherit;
+  letter-spacing: 0.02em;
+  transition: background 0.15s;
+}
+.ghost-btn:hover { background: rgba(255,253,247,0.5); }
+
+/* ---------- Canvas / thread ---------- */
+.canvas {
+  overflow-y: auto;
+  padding: 8px 32px 24px;
+  scroll-behavior: smooth;
+}
+.msg-ai .bubble-ai { max-width: 100%; width: 100%; }
+.msg-ai { width: 100%; }
+.canvas::-webkit-scrollbar { width: 8px; }
+.canvas::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 4px; }
+
+.hero {
+  max-width: 720px;
+  margin: 8vh auto 0;
+  text-align: left;
+  padding: 0 8px;
+}
+.hero-eyebrow {
+  font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase;
+  margin-bottom: 22px;
+}
+.hero-title {
+  font-size: clamp(56px, 8vw, 110px);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  font-weight: 400;
+  margin: 0 0 28px;
+  padding-bottom: 0.05em;
+}
+.hero-title em { font-style: italic; }
+.hero-title .hero-news {
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-size: 0.78em;
+  display: inline-block;
+  transform: translateY(-0.08em);
+  margin-left: 0.08em;
+}
+.hero-sub {
+  font-size: 18px;
+  font-style: italic;
+  font-family: 'Instrument Serif', serif;
+  margin: 16px 0 36px;
+  letter-spacing: 0.005em;
+}
+
+.chips {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-top: 10px;
+  max-width: 620px;
+}
+.chip {
+  border: 1px solid;
+  padding: 9px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background 0.15s, transform 0.15s;
+  letter-spacing: 0.005em;
+}
+.chip:hover { transform: translateY(-1px); background: rgba(255,253,247,0.85) !important; }
+
+/* ---------- Thread / messages ---------- */
+.thread {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 8px 12px;
+  display: flex; flex-direction: column;
+  gap: 22px;
+}
+
+/* ---------- Cards block ---------- */
+.cards-block {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 4px;
+  animation: bubbleIn 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: 0.08s;
+}
+.cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.ncard {
+  display: flex; flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px 14px;
+  border: 1px solid;
+  border-radius: 16px;
+  backdrop-filter: blur(14px) saturate(1.05);
+  -webkit-backdrop-filter: blur(14px) saturate(1.05);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.ncard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(20, 14, 6, 0.08);
+}
+.ncard-lead {
+  grid-column: 1 / -1;
+  padding: 18px 22px 16px;
+}
+.ncard-meta {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ncard-source { font-weight: 600; letter-spacing: 0.06em; }
+.ncard-dot { opacity: 0.5; }
+.ncard-tag {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+.ncard-title {
+  margin: 2px 0 0;
+  font-family: 'Instrument Serif', serif;
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: -0.005em;
+  font-weight: 400;
+}
+.ncard-lead .ncard-title { font-size: 28px; }
+.ncard-blurb {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.ncard-actions {
+  display: flex; gap: 14px;
+  margin-top: 6px;
+}
+.ncard-link {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: transparent; border: 0;
+  padding: 4px 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid currentColor;
+  border-radius: 0;
+  cursor: pointer;
+}
+.ncard-link.soft { border-bottom-color: transparent; opacity: 0.85; }
+.ncard-link.soft:hover { border-bottom-color: currentColor; }
+
+/* ---------- Action chip row ---------- */
+.action-row {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-top: 4px;
+}
+.action-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  border: 1px solid;
+  padding: 8px 14px 8px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 450;
+  letter-spacing: 0.005em;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: transform 0.15s, background 0.15s;
+}
+.action-chip:hover { transform: translateY(-1px); background: rgba(255,253,247,0.95) !important; }
+
+/* ---------- Followups ---------- */
+.followups {
+  margin-top: 8px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.followups-label {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin: 4px 2px 2px;
+}
+.followup {
+  display: flex; align-items: center; justify-content: space-between;
+  background: transparent;
+  border: 1px solid;
+  padding: 11px 16px;
+  border-radius: 12px;
+  font-size: 14.5px;
+  font-style: italic;
+  font-family: 'Instrument Serif', serif;
+  text-align: left;
+  transition: background 0.15s, transform 0.15s;
+}
+.followup:hover { background: rgba(255,253,247,0.55); transform: translateX(2px); }
+.followup svg { opacity: 0.5; }
+
+/* ---------- Preferences deck ---------- */
+.prefs-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(20, 14, 6, 0.42);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: grid; place-items: center;
+  padding: 4vh 4vw;
+  animation: prefsFade 0.25s ease both;
+}
+@keyframes prefsFade { from { opacity: 0; } to { opacity: 1; } }
+.prefs-deck {
+  position: relative;
+  width: min(880px, 96vw);
+  max-height: 92vh;
+  border: 1px solid;
+  border-radius: 22px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(20,14,6,0.28);
+  animation: prefsRise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes prefsRise { from { opacity: 0; transform: translateY(14px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.prefs-grain {
+  position: absolute; inset: 0;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  opacity: 0.7;
+}
+.prefs-close {
+  position: absolute; top: 18px; right: 18px;
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  background: rgba(255,253,247,0.5);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 50%;
+  z-index: 2;
+  transition: background 0.15s;
+}
+.prefs-close:hover { background: rgba(255,253,247,0.85); }
+
+.prefs-head {
+  position: relative; z-index: 1;
+  padding: 36px 44px 18px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+.prefs-eyebrow {
+  font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.prefs-title {
+  font-size: 56px;
+  line-height: 1.0;
+  letter-spacing: -0.015em;
+  font-weight: 400;
+  margin: 0 0 10px;
+}
+.prefs-news {
+  font-style: italic;
+  font-weight: 600;
+  font-size: 0.78em;
+  display: inline-block;
+  transform: translateY(-0.08em);
+}
+.prefs-sub {
+  margin: 0 0 22px;
+  font-size: 15px;
+  font-style: italic;
+  font-family: 'Instrument Serif', serif;
+}
+
+.prefs-stepper {
+  display: flex; gap: 22px;
+  flex-wrap: wrap;
+}
+.prefs-step {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: transparent; border: 0; padding: 0;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.prefs-step.active, .prefs-step.done { opacity: 1; }
+.prefs-step-num {
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  border: 1px solid;
+  border-radius: 50%;
+  font-size: 10px;
+  font-family: 'Instrument Serif', serif;
+  font-style: italic;
+}
+
+.prefs-body {
+  position: relative; z-index: 1;
+  flex: 1;
+  overflow-y: auto;
+  padding: 26px 44px 28px;
+}
+.prefs-pane {
+  animation: paneIn 0.3s ease both;
+}
+@keyframes paneIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.prefs-pane-q {
+  font-size: 30px;
+  line-height: 1.1;
+  letter-spacing: -0.005em;
+  margin-bottom: 6px;
+}
+.prefs-pane-h {
+  font-size: 14px;
+  font-style: italic;
+  font-family: 'Instrument Serif', serif;
+  margin-bottom: 22px;
+}
+
+.prefs-chips {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.prefs-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+  transition: transform 0.12s, background 0.12s;
+}
+.prefs-chip:hover { transform: translateY(-1px); }
+.prefs-chip-mark {
+  font-size: 14px;
+  font-family: 'Instrument Serif', serif;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.prefs-sources {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.prefs-source {
+  display: flex; align-items: center; gap: 12px;
+  border: 1px solid;
+  border-radius: 12px;
+  padding: 12px 14px;
+  text-align: left;
+  transition: transform 0.12s, background 0.12s;
+}
+.prefs-source:hover { transform: translateY(-1px); }
+.prefs-source-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.prefs-source-name { font-size: 14.5px; font-weight: 500; }
+.prefs-source-kind {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.prefs-radio-col {
+  display: flex; flex-direction: column;
+  gap: 8px;
+}
+.prefs-radio {
+  display: flex; align-items: center; gap: 14px;
+  border: 1px solid;
+  border-radius: 12px;
+  padding: 14px 18px;
+  text-align: left;
+  transition: transform 0.12s;
+}
+.prefs-radio:hover { transform: translateY(-1px); }
+.prefs-radio-dot {
+  width: 14px; height: 14px;
+  border: 1.5px solid;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.prefs-radio-label {
+  font-size: 20px;
+  letter-spacing: -0.005em;
+  line-height: 1.1;
+}
+.prefs-radio-note {
+  font-size: 13px;
+  font-style: italic;
+  font-family: 'Instrument Serif', serif;
+  margin-top: 2px;
+}
+
+.prefs-slider-row {
+  margin-top: 22px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.prefs-slider-label {
+  font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+}
+.prefs-slider {
+  width: 100%;
+  accent-color: currentColor;
+}
+
+.prefs-cadence {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.prefs-cad {
+  border: 1px solid;
+  border-radius: 14px;
+  padding: 18px 20px;
+  text-align: left;
+  transition: transform 0.12s;
+}
+.prefs-cad:hover { transform: translateY(-1px); }
+.prefs-cad-name {
+  font-size: 22px;
+  letter-spacing: -0.005em;
+  line-height: 1.05;
+}
+.prefs-cad-note {
+  font-size: 13px;
+  font-style: italic;
+  font-family: 'Instrument Serif', serif;
+  margin-top: 4px;
+}
+
+.prefs-foot {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 44px;
+  border-top: 1px solid;
+  background: rgba(255,253,247,0.35);
+  backdrop-filter: blur(8px);
+}
+.prefs-back, .prefs-next {
+  border: 0;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+.prefs-back {
+  background: transparent;
+  padding: 10px 14px;
+}
+.prefs-back:disabled { opacity: 0.3; cursor: not-allowed; }
+.prefs-next {
+  padding: 11px 22px;
+  border-radius: 999px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  transition: transform 0.12s;
+}
+.prefs-next:hover { transform: translateX(2px); }
+.prefs-progress {
+  font-family: 'Instrument Serif', serif;
+  font-style: italic;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .prefs-head, .prefs-body, .prefs-foot { padding-left: 22px; padding-right: 22px; }
+  .prefs-title { font-size: 40px; }
+  .prefs-pane-q { font-size: 24px; }
+  .prefs-sources, .prefs-cadence { grid-template-columns: 1fr; }
+  .prefs-stepper { gap: 12px; }
+}
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed;
+  bottom: 28px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20, 14, 6, 0.92);
+  color: #f4ede1;
+  font-size: 13px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  z-index: 9999;
+  letter-spacing: 0.01em;
+  font-style: italic;
+  font-family: 'Instrument Serif', serif;
+  animation: toastIn 0.3s ease both;
+  backdrop-filter: blur(8px);
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@media (max-width: 720px) {
+  .cards-grid { grid-template-columns: 1fr; }
+  .ncard-lead { padding: 16px 18px; }
+  .ncard-lead .ncard-title { font-size: 24px; }
+}
+.msg { display: flex; flex-direction: column; }
+.msg-user { align-items: flex-end; }
+.msg-ai { align-items: flex-start; }
+.msg-byline {
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  font-style: italic;
+  margin: 0 6px 6px;
+}
+.bubble {
+  max-width: 78%;
+  padding: 14px 18px;
+  border-radius: 18px;
+  line-height: 1.55;
+  font-size: 15.5px;
+  letter-spacing: 0.005em;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  border: 1px solid transparent;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: bubbleIn 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.bubble-user {
+  border-bottom-right-radius: 6px;
+}
+.bubble-ai {
+  border-bottom-left-radius: 6px;
+}
+.msg-compact .bubble { padding: 10px 14px; font-size: 14.5px; }
+
+@keyframes bubbleIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.thinking { display: inline-flex; gap: 5px; padding: 2px 0; }
+.thinking .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; opacity: 0.4;
+  animation: blink 1.2s infinite ease-in-out;
+}
+.thinking .dot:nth-child(2) { animation-delay: 0.2s; }
+.thinking .dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink { 0%, 80%, 100% { opacity: 0.25; } 40% { opacity: 0.9; } }
+
+/* ---------- Composer ---------- */
+.composer-wrap {
+  padding: 8px 32px 22px;
+  display: flex; justify-content: center;
+}
+.composer {
+  width: 100%;
+  max-width: 720px;
+}
+.composer-inner {
+  display: flex; align-items: flex-end; gap: 10px;
+  padding: 10px 10px 10px 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(0,0,0,0.08);
+  backdrop-filter: blur(20px) saturate(1.1);
+  -webkit-backdrop-filter: blur(20px) saturate(1.1);
+  box-shadow: 0 8px 32px rgba(20, 14, 6, 0.08);
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+.composer-inner:focus-within {
+  box-shadow: 0 12px 40px rgba(20, 14, 6, 0.12);
+  border-color: rgba(0,0,0,0.16);
+}
+.composer-input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  resize: none;
+  outline: none;
+  padding: 8px 4px;
+  font: inherit;
+  font-size: 15.5px;
+  line-height: 1.45;
+  max-height: 220px;
+  min-height: 24px;
+}
+.composer-input::placeholder { color: rgba(0,0,0,0.38); }
+.composer-actions { display: flex; align-items: center; gap: 4px; }
+.icon-btn {
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  background: transparent; border: 0;
+  border-radius: 50%;
+  transition: background 0.15s;
+}
+.icon-btn:hover { background: rgba(0,0,0,0.05); }
+.send-btn {
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 50%;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.send-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.send-btn:not(:disabled):hover { transform: translateX(1px); }
+
+.composer-foot {
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  text-align: center;
+  margin-top: 8px;
+  font-style: italic;
+  font-family: 'Instrument Serif', serif;
+}
+
+/* ---------- MAI mark ---------- */
+.mai-mark {
+  position: relative;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+}
+.mm-grain { position: absolute; inset: 0; }
+.mm-grain-overlay {
+  position: absolute; inset: 0;
+  mix-blend-mode: overlay;
+  opacity: 0.9;
+}
+
+/* ---------- Sign-out button in sidebar ---------- */
+.signout-btn {
+  margin-left: auto;
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 50%;
+  transition: background 0.15s, transform 0.15s;
+  flex-shrink: 0;
+}
+.signout-btn:hover { background: rgba(255,253,247,0.85); transform: translateX(1px); }
+
+/* ---------- Auth (Sign in / Sign up) ---------- */
+.auth-shell {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 6vh 5vw;
+  overflow: auto;
+}
+.auth-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 480px;
+  gap: 72px;
+  max-width: 1120px;
+  width: 100%;
+  align-items: center;
+}
+.auth-hero { padding: 8px 4px; }
+.auth-brand { margin-bottom: 56px; }
+.auth-headline {
+  font-size: clamp(44px, 5.4vw, 72px);
+  line-height: 1.06;
+  letter-spacing: -0.022em;
+  font-weight: 400;
+  margin: 0 0 56px;
+}
+.auth-headline em {
+  font-style: italic;
+  font-weight: 400;
+  font-family: 'Instrument Serif', 'Cormorant Garamond', Georgia, serif;
+  font-size: 1em;
+  line-height: 1.04;
+}
+.auth-tagline {
+  font-size: 17px;
+  font-style: italic;
+  font-family: 'Instrument Serif', serif;
+  margin: 8px 0 30px;
+  max-width: 500px;
+  line-height: 1.45;
+  letter-spacing: 0.005em;
+}
+.auth-bullets {
+  display: flex; flex-direction: column;
+  gap: 20px;
+  max-width: 480px;
+}
+.auth-line {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.55;
+  font-style: italic;
+  font-family: 'Instrument Serif', serif;
+  letter-spacing: 0.005em;
+}
+
+.auth-card {
+  position: relative;
+  border: 1px solid;
+  border-radius: 22px;
+  padding: 30px 32px 26px;
+  backdrop-filter: blur(20px) saturate(1.05);
+  -webkit-backdrop-filter: blur(20px) saturate(1.05);
+  box-shadow: 0 24px 70px rgba(20, 14, 6, 0.14);
+}
+.auth-tabs {
+  display: flex;
+  gap: 28px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid rgba(0,0,0,0.07);
+}
+.auth-tab {
+  background: transparent;
+  border: 0;
+  border-bottom-width: 2px;
+  border-bottom-style: solid;
+  border-bottom-color: transparent;
+  padding: 4px 2px 12px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 500;
+  transition: color 0.15s, border-bottom-color 0.15s;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+
+.auth-h {
+  font-size: 38px;
+  line-height: 1.02;
+  letter-spacing: -0.018em;
+  font-weight: 400;
+  margin: 6px 0 6px;
+}
+.auth-sub {
+  font-size: 14.5px;
+  font-style: italic;
+  font-family: 'Instrument Serif', serif;
+  margin: 0 0 22px;
+  line-height: 1.45;
+}
+
+.auth-sso {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1px solid;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+  transition: background 0.15s, transform 0.15s;
+}
+.auth-sso:hover:not(:disabled) { transform: translateY(-1px); background: rgba(255,253,247,0.9) !important; }
+.auth-sso:disabled { opacity: 0.5; cursor: wait; }
+
+.auth-divider {
+  display: flex; align-items: center;
+  gap: 12px;
+  margin: 18px 0 16px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-style: italic;
+  font-family: 'Instrument Serif', serif;
+}
+.auth-divider-line {
+  flex: 1;
+  height: 1px;
+  background: rgba(0,0,0,0.08);
+}
+
+.auth-form {
+  display: flex; flex-direction: column;
+  gap: 14px;
+}
+.auth-field {
+  display: flex; flex-direction: column;
+  gap: 6px;
+}
+.auth-field > span:first-child {
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.auth-field input, .auth-field select {
+  font: inherit;
+  font-size: 14.5px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid;
+  background: rgba(255,253,247,0.45);
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.auth-field select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%231f1d18' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
+.auth-field input::placeholder { color: rgba(0,0,0,0.34); }
+.auth-field input:focus, .auth-field select:focus {
+  background: rgba(255,253,247,0.9);
+  border-color: rgba(0,0,0,0.34) !important;
+}
+.auth-hint {
+  font-size: 11.5px;
+  font-style: italic;
+  font-family: 'Instrument Serif', serif;
+  margin-top: 1px;
+  letter-spacing: 0.005em;
+}
+
+.auth-region-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 2px;
+}
+.auth-region {
+  padding: 10px 12px;
+  border: 1px solid;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 450;
+  letter-spacing: 0.005em;
+  text-align: left;
+  transition: transform 0.12s, background 0.12s, color 0.12s;
+}
+.auth-region:hover { transform: translateY(-1px); }
+
+.auth-row-between {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: -2px;
+  font-size: 12.5px;
+}
+.auth-check {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.auth-check input {
+  accent-color: currentColor;
+  width: 14px; height: 14px;
+}
+.auth-link {
+  background: transparent;
+  border: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+.auth-error {
+  font-size: 13px;
+  background: rgba(217, 122, 58, 0.10);
+  border: 1px solid rgba(217, 122, 58, 0.35);
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-style: italic;
+  font-family: 'Instrument Serif', serif;
+  letter-spacing: 0.005em;
+  line-height: 1.4;
+}
+
+.auth-submit {
+  width: 100%;
+  border: 0;
+  padding: 13px 16px;
+  border-radius: 12px;
+  font-size: 14.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin-top: 6px;
+  transition: transform 0.12s, opacity 0.15s;
+  cursor: pointer;
+}
+.auth-submit:hover:not(:disabled) { transform: translateY(-1px); }
+.auth-submit:disabled { opacity: 0.5; cursor: wait; }
+
+.auth-meta {
+  font-size: 11.5px;
+  margin: 18px 0 0;
+  line-height: 1.55;
+  letter-spacing: 0.005em;
+}
+
+/* Topic groups within Topics step */
+.prefs-group {
+  margin-bottom: 22px;
+}
+.prefs-group:last-child { margin-bottom: 0; }
+.prefs-group-head {
+  display: flex; align-items: baseline; gap: 12px;
+  margin-bottom: 10px;
+}
+.prefs-group-label {
+  font-size: 20px;
+  letter-spacing: -0.005em;
+}
+.prefs-group-note {
+  font-size: 12px;
+  font-style: italic;
+  font-family: 'Instrument Serif', serif;
+  letter-spacing: 0.005em;
+}
+
+/* Region grid inside Region step */
+.prefs-region-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.prefs-region {
+  padding: 14px 16px;
+  border: 1px solid;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 450;
+  letter-spacing: 0.005em;
+  text-align: left;
+  transition: transform 0.12s, background 0.12s, color 0.12s;
+  cursor: pointer;
+}
+.prefs-region:hover { transform: translateY(-1px); }
+
+/* Keywords input for Breaking-news alerts */
+.prefs-keywords {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: rgba(255,253,247,0.55);
+  border: 1px solid rgba(0,0,0,0.08);
+  display: flex; flex-direction: column;
+  gap: 8px;
+}
+.prefs-keywords-label {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.prefs-keywords-input {
+  font: inherit;
+  font-size: 14.5px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid;
+  background: rgba(255,255,255,0.6);
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.prefs-keywords-input:focus {
+  background: rgba(255,255,255,0.95);
+  border-color: rgba(0,0,0,0.34) !important;
+}
+.prefs-keywords-hint {
+  font-size: 12.5px;
+  font-style: italic;
+  font-family: 'Instrument Serif', serif;
+  margin: 0;
+  letter-spacing: 0.005em;
+}
+
+@media (max-width: 720px) {
+  .prefs-region-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 920px) {
+  .auth-grid { grid-template-columns: 1fr; max-width: 540px; gap: 28px; }
+  .auth-hero { order: -1; }
+  .auth-headline { font-size: 56px; }
+  .auth-tagline { font-size: 15.5px; max-width: none; }
+  .auth-region-grid { grid-template-columns: 1fr; }
+  .auth-card { padding: 24px 22px; }
+  .auth-h { font-size: 30px; }
+}
+
+/* ---------- Microsoft SSO modal (mock) ---------- */
+.ms-overlay {
+  position: fixed; inset: 0;
+  z-index: 200;
+  background: rgba(20, 14, 6, 0.55);
+  display: grid; place-items: center;
+  padding: 4vh 4vw;
+  animation: msFade 0.18s ease both;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: #1b1b1b;
+}
+@keyframes msFade { from { opacity: 0; } to { opacity: 1; } }
+.ms-card {
+  position: relative;
+  width: min(440px, 96vw);
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.1);
+  box-shadow: 0 26px 60px rgba(0,0,0,0.32);
+  padding: 44px 44px 36px;
+  animation: msRise 0.22s cubic-bezier(0.2,0.8,0.2,1) both;
+}
+@keyframes msRise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.ms-close {
+  position: absolute; top: 14px; right: 14px;
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  background: transparent; border: 0;
+  color: #5e5e5e;
+  border-radius: 2px;
+  transition: background 0.15s;
+}
+.ms-close:hover { background: #f3f3f3; }
+.ms-logo-row { margin-bottom: 24px; }
+.ms-h {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  margin: 0 0 14px;
+  color: #1b1b1b;
+}
+.ms-body {
+  font-size: 15px;
+  line-height: 1.4;
+  margin: 0 0 22px;
+  color: #1b1b1b;
+}
+.ms-accounts {
+  list-style: none; margin: 0; padding: 0;
+  border-top: 1px solid #ededed;
+}
+.ms-accounts > li { border-bottom: 1px solid #ededed; }
+.ms-account {
+  display: flex; align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 4px;
+  background: transparent; border: 0;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.ms-account:hover { background: #f6f6f6; }
+.ms-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.ms-avatar-plus {
+  background: #f3f3f3 !important;
+  color: #5e5e5e;
+  font-size: 20px;
+  font-weight: 300;
+}
+.ms-account-meta {
+  display: flex; flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.ms-account-name {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #1b1b1b;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ms-account-email {
+  font-size: 13px;
+  color: #5e5e5e;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ms-account-status {
+  display: inline-flex; align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #107C10;
+  flex-shrink: 0;
+  font-weight: 600;
+}
+.ms-other { color: #1b1b1b; }
+.ms-other .ms-account-name { font-weight: 500; color: #1b1b1b; }
+
+.ms-back {
+  display: inline-flex; align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 0;
+  padding: 0 0 18px;
+  color: #5e5e5e;
+  font-size: 13px;
+  cursor: pointer;
+}
+.ms-back:hover { color: #0067b8; }
+.ms-back-email {
+  font-size: 13.5px;
+  color: #1b1b1b;
+  padding: 4px 10px;
+  background: #f3f3f3;
+  border-radius: 999px;
+}
+
+.ms-field {
+  display: flex; flex-direction: column;
+  gap: 0;
+  margin-bottom: 16px;
+}
+.ms-field > span {
+  font-size: 11px;
+  color: #5e5e5e;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.ms-field input {
+  font: inherit;
+  font-size: 15px;
+  padding: 8px 0 6px;
+  border: 0;
+  border-bottom: 1px solid #666;
+  background: transparent;
+  outline: none;
+  color: #1b1b1b;
+  transition: border-color 0.15s;
+}
+.ms-field input:focus { border-bottom-color: #0067b8; border-bottom-width: 2px; padding-bottom: 5px; }
+.ms-field input::placeholder { color: #a3a3a3; }
+
+.ms-error {
+  font-size: 13px;
+  color: #c50f1f;
+  margin: -6px 0 14px;
+  line-height: 1.35;
+}
+.ms-note {
+  font-size: 13px;
+  color: #1b1b1b;
+  margin: 12px 0 16px;
+}
+.ms-note a, .ms-link {
+  color: #0067b8;
+  text-decoration: none;
+  font-weight: 600;
+}
+.ms-note a:hover, .ms-link:hover { text-decoration: underline; }
+.ms-link {
+  display: inline-block;
+  font-size: 13.5px;
+  margin: 4px 0 18px;
+}
+
+.ms-check {
+  display: inline-flex; align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: #1b1b1b;
+  margin-bottom: 18px;
+  cursor: pointer;
+}
+.ms-check input {
+  width: 16px; height: 16px;
+  accent-color: #0067b8;
+}
+
+.ms-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.ms-actions-row {
+  gap: 8px;
+}
+.ms-primary, .ms-secondary {
+  min-width: 108px;
+  padding: 8px 16px;
+  border: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.ms-primary {
+  background: #0067b8;
+  color: #fff;
+}
+.ms-primary:hover { background: #005a9e; }
+.ms-secondary {
+  background: #fff;
+  color: #1b1b1b;
+  border: 1px solid #8a8886;
+}
+.ms-secondary:hover { background: #f3f3f3; }
+
+.ms-done {
+  display: flex; flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 0 16px;
+  gap: 18px;
+}
+.ms-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid #e3e3e3;
+  border-top-color: #0067b8;
+  border-radius: 50%;
+  animation: msSpin 0.8s linear infinite;
+}
+@keyframes msSpin { to { transform: rotate(360deg); } }
+
+.ms-foot {
+  position: absolute;
+  bottom: 14px; right: 18px;
+  display: flex; gap: 14px;
+  font-size: 11.5px;
+}
+.ms-foot a {
+  color: #5e5e5e;
+  text-decoration: none;
+}
+.ms-foot a:hover { text-decoration: underline; color: #0067b8; }
+
+@media (max-width: 480px) {
+  .ms-card { padding: 36px 28px 30px; }
+  .ms-foot { right: 14px; }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 860px) {
+  .shell { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .topbar, .canvas, .composer-wrap { padding-left: 18px; padding-right: 18px; }
+  .hero { margin-top: 6vh; }
+}
+
+/* ---------- Share modal ---------- */
+.share-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 400;
+  display: flex; align-items: center; justify-content: center;
+}
+.share-modal {
+  width: 320px; border-radius: 16px; padding: 20px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.share-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.share-opt {
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(0,0,0,0.04); border: none; cursor: pointer;
+  border-radius: 10px; padding: 12px 14px; text-align: left; width: 100%;
+  transition: background 0.12s;
+}
+.share-opt:hover { background: rgba(0,0,0,0.08); }
+.share-opt-text { display: flex; flex-direction: column; gap: 1px; }
+.share-opt-label { font-size: 13.5px; font-weight: 500; }
+.share-opt-hint { font-size: 11.5px; opacity: 0.55; }
+.share-cancel {
+  background: none; border: none; cursor: pointer; font-size: 13px;
+  opacity: 0.5; margin-top: 4px; padding: 6px; border-radius: 8px;
+  transition: opacity 0.1s;
+}
+.share-cancel:hover { opacity: 0.8; }
+
+/* ---------- Print styles ---------- */
+@media print {
+  .sidebar, .topbar, .composer-wrap, .backdrop,
+  .toast-wrap, .hero-eyebrow, .chips { display: none !important; }
+  .shell { display: block !important; }
+  .main { width: 100% !important; padding: 0 !important; }
+  .canvas { overflow: visible !important; max-height: none !important; height: auto !important; padding: 20px !important; }
+  .bubble-ai, .bubble-user { background: #f5f5f5 !important; color: #000 !important; border: 1px solid #ddd !important; }
+  body { background: white !important; }
+}
+
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<!-- ── Google Identity Services ──────────────────────────────────────── -->
+<script src="https://accounts.google.com/gsi/client" async></script>
+
+<!-- ── OAuth 2.0 Authorization Code + PKCE (sin librerías externas) ──── -->
+<script>
+// ── Configuración — reemplaza estos dos valores con tu app de Azure AD ─
+// Azure Portal → Azure Active Directory → App registrations → Nueva/Existente
+//
+//   OAUTH_CLIENT_ID : "Application (client) ID"  (pestaña Overview)
+//   OAUTH_TENANT    : tu Tenant ID (GUID) o dominio, ej. "microsoft.com"
+//                     "common"        → cualquier cuenta Microsoft (trabajo + personal)
+//                     "organizations" → solo cuentas de trabajo/escuela
+//
+// En Authentication → Platform configurations → Single-page application
+//   añade tu redirect URI, ej.: http://localhost:5500/index.html
+// ──────────────────────────────────────────────────────────────────────
+const OAUTH_CLIENT_ID = "5f70e9db-ba4c-484d-a442-bed3fbeced0e";
+const OAUTH_TENANT    = "common";
+const OAUTH_SCOPES    = "openid profile email User.Read";
+
+// URL exacta de redirección — debe coincidir con la registrada en Azure
+const OAUTH_REDIRECT_URI = "http://localhost:5500/index.html";
+
+// ── PKCE: genera code_verifier y code_challenge (SHA-256 / base64url) ─
+async function _pkceGenerate() {
+  const array    = crypto.getRandomValues(new Uint8Array(32));
+  const verifier = btoa(String.fromCharCode.apply(null, array))
+                     .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+  const digest   = await crypto.subtle.digest(
+    "SHA-256", new TextEncoder().encode(verifier)
+  );
+  const challenge = btoa(String.fromCharCode.apply(null, new Uint8Array(digest)))
+                      .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+  return { verifier, challenge };
+}
+
+// ── Decodifica el payload del id_token (JWT) sin verificar firma ──────
+function _jwtPayload(token) {
+  try {
+    const b64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(b64));
+  } catch (_) { return {}; }
+}
+
+// ── Intercambia el authorization code por tokens ──────────────────────
+async function _exchangeCode(code, verifier) {
+  const res = await fetch(
+    "https://login.microsoftonline.com/" + OAUTH_TENANT + "/oauth2/v2.0/token",
+    {
+      method:  "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body:    new URLSearchParams({
+        grant_type:    "authorization_code",
+        client_id:     OAUTH_CLIENT_ID,
+        code:          code,
+        redirect_uri:  OAUTH_REDIRECT_URI,
+        code_verifier: verifier,
+        scope:         OAUTH_SCOPES,
+      }),
+    }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error_description || "Token exchange failed (" + res.status + ")");
+  }
+  return res.json();
+}
+
+// ── Microsoft Graph: obtiene departamento del perfil del usuario ───────
+async function _fetchDepartment(accessToken) {
+  try {
+    const res = await fetch(
+      "https://graph.microsoft.com/v1.0/me?$select=department",
+      { headers: { Authorization: "Bearer " + accessToken } }
+    );
+    if (res.ok) { const j = await res.json(); return j.department || ""; }
+  } catch (_) {}
+  return "";
+}
+
+// ── Punto de entrada llamado desde React ──────────────────────────────
+// loginHint  : email para pre-rellenar la página de Microsoft (opcional)
+// onSuccess(user) : recibe el objeto de usuario al completar
+// onError(msg)    : recibe un string de error
+window.msalLogin = async function(loginHint, onSuccess, onError) {
+
+  // Fallback de desarrollo: si los placeholders no están reemplazados,
+  // simula auth para que el prototipo funcione sin credenciales reales.
+  if (OAUTH_CLIENT_ID === "YOUR_CLIENT_ID_HERE") {
+    var email = loginHint || "dev@microsoft.com";
+    var name  = email.split("@")[0]
+                     .replace(/[._\-]+/g, " ")
+                     .replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+    setTimeout(function() {
+      onSuccess({ name: name, email: email, department: "Engineering",
+                  region: "eu", signedInAt: Date.now(), sso: true });
+    }, 700);
+    return;
+  }
+
+  try {
+    // 1. Genera PKCE y state anti-CSRF
+    var pkce  = await _pkceGenerate();
+    var state = btoa(String.fromCharCode.apply(null, crypto.getRandomValues(new Uint8Array(16))));
+    sessionStorage.setItem("oauth2_verifier", pkce.verifier);
+    sessionStorage.setItem("oauth2_state",    state);
+
+    // 2. Construye la URL de autorización
+    var authUrl = new URL(
+      "https://login.microsoftonline.com/" + OAUTH_TENANT + "/oauth2/v2.0/authorize"
+    );
+    authUrl.searchParams.set("client_id",             OAUTH_CLIENT_ID);
+    authUrl.searchParams.set("response_type",         "code");
+    authUrl.searchParams.set("redirect_uri",          OAUTH_REDIRECT_URI);
+    authUrl.searchParams.set("scope",                 OAUTH_SCOPES);
+    authUrl.searchParams.set("code_challenge",        pkce.challenge);
+    authUrl.searchParams.set("code_challenge_method", "S256");
+    authUrl.searchParams.set("state",                 state);
+    authUrl.searchParams.set("response_mode",         "query");
+    authUrl.searchParams.set("prompt",                "select_account");
+    if (loginHint) authUrl.searchParams.set("login_hint", loginHint);
+
+    // 3. Abre popup centrado
+    var pw = 500, ph = 660;
+    var pl = Math.floor((screen.width  - pw) / 2);
+    var pt = Math.floor((screen.height - ph) / 2);
+    var popup = window.open(
+      authUrl.toString(), "oauth2_popup",
+      "width=" + pw + ",height=" + ph + ",left=" + pl + ",top=" + pt +
+      ",resizable=yes,scrollbars=yes,status=yes"
+    );
+    if (!popup) { onError("Popup bloqueado. Permite ventanas emergentes para esta página."); return; }
+
+    // 4. Sondea el popup hasta que aterrice en el redirect URI
+    var pollTimer = setInterval(async function() {
+      try {
+        if (popup.closed) {
+          clearInterval(pollTimer);
+          // No llamar onError si el usuario cerró el popup voluntariamente
+          return;
+        }
+
+        var href = "";
+        try { href = popup.location.href; } catch (_) { return; } // cross-origin: espera
+
+        if (!href.startsWith(OAUTH_REDIRECT_URI)) return; // aún en páginas de Microsoft
+
+        clearInterval(pollTimer);
+        popup.close();
+
+        var params      = new URL(href).searchParams;
+        var code        = params.get("code");
+        var returnState = params.get("state");
+        var errParam    = params.get("error");
+
+        if (errParam) {
+          onError(params.get("error_description") || errParam);
+          return;
+        }
+        if (!code) { onError("No se recibió código de autorización."); return; }
+        if (returnState !== sessionStorage.getItem("oauth2_state")) {
+          onError("State mismatch — posible ataque CSRF. Intenta de nuevo.");
+          return;
+        }
+
+        // 5. Intercambia code por tokens
+        var verifier = sessionStorage.getItem("oauth2_verifier");
+        sessionStorage.removeItem("oauth2_verifier");
+        sessionStorage.removeItem("oauth2_state");
+
+        var tokens = await _exchangeCode(code, verifier);
+        var claims = _jwtPayload(tokens.id_token);
+
+        // 6. Obtiene departamento de Microsoft Graph
+        var department = await _fetchDepartment(tokens.access_token);
+
+        // 7. Construye el objeto de usuario
+        var userEmail = claims.preferred_username || claims.email || claims.upn || "";
+        var userName  = claims.name
+                        || userEmail.split("@")[0]
+                                    .replace(/[._\-]+/g, " ")
+                                    .replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+
+        onSuccess({
+          name:        userName,
+          email:       userEmail,
+          department:  department || "Engineering",
+          region:      "eu",
+          signedInAt:  Date.now(),
+          sso:         true,
+          accessToken: tokens.access_token,
+        });
+
+      } catch (pollErr) {
+        clearInterval(pollTimer);
+        if (!popup.closed) popup.close();
+        onError(pollErr.message || "Error durante la autenticación.");
+      }
+    }, 300);
+
+  } catch (err) {
+    onError(err.message || "Error al iniciar sesión.");
+  }
+};
+
+// ── Google OAuth (token flow via Google Identity Services) ────────────
+window.googleLogin = function(onSuccess, onError) {
+  var gsi = window.google && window.google.accounts && window.google.accounts.oauth2;
+  if (!gsi) { onError("Google no cargó aún. Recarga la página e intenta de nuevo."); return; }
+
+  var client = gsi.initTokenClient({
+    client_id: "938314069231-hc8a0495u5d7v8a4q6q2tvs8jpfamjiq.apps.googleusercontent.com",
+    scope: "openid profile email",
+    callback: async function(response) {
+      if (response.error) { onError(response.error_description || response.error); return; }
+      try {
+        var res  = await fetch("https://www.googleapis.com/oauth2/v3/userinfo",
+                               { headers: { Authorization: "Bearer " + response.access_token } });
+        var info = await res.json();
+        onSuccess({
+          name:        info.name  || (info.email || "").split("@")[0],
+          email:       info.email || "",
+          department:  "Engineering",
+          region:      "eu",
+          signedInAt:  Date.now(),
+          sso:         true,
+          provider:    "google",
+          accessToken: response.access_token,
+        });
+      } catch(e) { onError("Error al obtener información de tu cuenta de Google."); }
+    },
+    error_callback: function(err) {
+      if (err.type !== "popup_closed") onError(err.message || "Error al iniciar sesión con Google.");
+    }
+  });
+
+  client.requestAccessToken({ prompt: "select_account" });
+};
+</script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+
+
+
+
+
+
+// tweaks-panel.jsx
+// Reusable Tweaks shell + form-control helpers.
+//
+// Owns the host protocol (listens for __activate_edit_mode / __deactivate_edit_mode,
+// posts __edit_mode_available / __edit_mode_set_keys / __edit_mode_dismissed) so
+// individual prototypes don't re-roll it. Ships a consistent set of controls so you
+// don't hand-draw <input type="range">, segmented radios, steppers, etc.
+//
+// Usage (in an HTML file that loads React + Babel):
+//
+//   const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+//     "primaryColor": "#D97757",
+//     "fontSize": 16,
+//     "density": "regular",
+//     "dark": false
+//   }/*EDITMODE-END*/;
+//
+//   function App() {
+//     const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+//     return (
+//       <div style={{ fontSize: t.fontSize, color: t.primaryColor }}>
+//         Hello
+//         <TweaksPanel>
+//           <TweakSection label="Typography" />
+//           <TweakSlider label="Font size" value={t.fontSize} min={10} max={32} unit="px"
+//                        onChange={(v) => setTweak('fontSize', v)} />
+//           <TweakRadio  label="Density" value={t.density}
+//                        options={['compact', 'regular', 'comfy']}
+//                        onChange={(v) => setTweak('density', v)} />
+//           <TweakSection label="Theme" />
+//           <TweakColor  label="Primary" value={t.primaryColor}
+//                        onChange={(v) => setTweak('primaryColor', v)} />
+//           <TweakToggle label="Dark mode" value={t.dark}
+//                        onChange={(v) => setTweak('dark', v)} />
+//         </TweaksPanel>
+//       </div>
+//     );
+//   }
+//
+// ─────────────────────────────────────────────────────────────────────────────
+
+const __TWEAKS_STYLE = `
+  .twk-panel{position:fixed;right:16px;bottom:16px;z-index:2147483646;width:280px;
+    max-height:calc(100vh - 32px);display:flex;flex-direction:column;
+    background:rgba(250,249,247,.78);color:#29261b;
+    -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
+    border:.5px solid rgba(255,255,255,.6);border-radius:14px;
+    box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 12px 40px rgba(0,0,0,.18);
+    font:11.5px/1.4 ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
+  .twk-hd{display:flex;align-items:center;justify-content:space-between;
+    padding:10px 8px 10px 14px;cursor:move;user-select:none}
+  .twk-hd b{font-size:12px;font-weight:600;letter-spacing:.01em}
+  .twk-x{appearance:none;border:0;background:transparent;color:rgba(41,38,27,.55);
+    width:22px;height:22px;border-radius:6px;cursor:default;font-size:13px;line-height:1}
+  .twk-x:hover{background:rgba(0,0,0,.06);color:#29261b}
+  .twk-body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px;
+    overflow-y:auto;overflow-x:hidden;min-height:0;
+    scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.15) transparent}
+  .twk-body::-webkit-scrollbar{width:8px}
+  .twk-body::-webkit-scrollbar-track{background:transparent;margin:2px}
+  .twk-body::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px;
+    border:2px solid transparent;background-clip:content-box}
+  .twk-body::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.25);
+    border:2px solid transparent;background-clip:content-box}
+  .twk-row{display:flex;flex-direction:column;gap:5px}
+  .twk-row-h{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+  .twk-lbl{display:flex;justify-content:space-between;align-items:baseline;
+    color:rgba(41,38,27,.72)}
+  .twk-lbl>span:first-child{font-weight:500}
+  .twk-val{color:rgba(41,38,27,.5);font-variant-numeric:tabular-nums}
+
+  .twk-sect{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    color:rgba(41,38,27,.45);padding:10px 0 0}
+  .twk-sect:first-child{padding-top:0}
+
+  .twk-field{appearance:none;width:100%;height:26px;padding:0 8px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:7px;
+    background:rgba(255,255,255,.6);color:inherit;font:inherit;outline:none}
+  .twk-field:focus{border-color:rgba(0,0,0,.25);background:rgba(255,255,255,.85)}
+  select.twk-field{padding-right:22px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(0,0,0,.5)' d='M0 0h10L5 6z'/></svg>");
+    background-repeat:no-repeat;background-position:right 8px center}
+
+  .twk-slider{appearance:none;-webkit-appearance:none;width:100%;height:4px;margin:6px 0;
+    border-radius:999px;background:rgba(0,0,0,.12);outline:none}
+  .twk-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+    width:14px;height:14px;border-radius:50%;background:#fff;
+    border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
+  .twk-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;
+    background:#fff;border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
+
+  .twk-seg{position:relative;display:flex;padding:2px;border-radius:8px;
+    background:rgba(0,0,0,.06);user-select:none}
+  .twk-seg-thumb{position:absolute;top:2px;bottom:2px;border-radius:6px;
+    background:rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(0,0,0,.12);
+    transition:left .15s cubic-bezier(.3,.7,.4,1),width .15s}
+  .twk-seg.dragging .twk-seg-thumb{transition:none}
+  .twk-seg button{appearance:none;position:relative;z-index:1;flex:1;border:0;
+    background:transparent;color:inherit;font:inherit;font-weight:500;min-height:22px;
+    border-radius:6px;cursor:default;padding:4px 6px;line-height:1.2;
+    overflow-wrap:anywhere}
+
+  .twk-toggle{position:relative;width:32px;height:18px;border:0;border-radius:999px;
+    background:rgba(0,0,0,.15);transition:background .15s;cursor:default;padding:0}
+  .twk-toggle[data-on="1"]{background:#34c759}
+  .twk-toggle i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+  .twk-toggle[data-on="1"] i{transform:translateX(14px)}
+
+  .twk-num{display:flex;align-items:center;height:26px;padding:0 0 0 8px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:7px;background:rgba(255,255,255,.6)}
+  .twk-num-lbl{font-weight:500;color:rgba(41,38,27,.6);cursor:ew-resize;
+    user-select:none;padding-right:8px}
+  .twk-num input{flex:1;min-width:0;height:100%;border:0;background:transparent;
+    font:inherit;font-variant-numeric:tabular-nums;text-align:right;padding:0 8px 0 0;
+    outline:none;color:inherit;-moz-appearance:textfield}
+  .twk-num input::-webkit-inner-spin-button,.twk-num input::-webkit-outer-spin-button{
+    -webkit-appearance:none;margin:0}
+  .twk-num-unit{padding-right:8px;color:rgba(41,38,27,.45)}
+
+  .twk-btn{appearance:none;height:26px;padding:0 12px;border:0;border-radius:7px;
+    background:rgba(0,0,0,.78);color:#fff;font:inherit;font-weight:500;cursor:default}
+  .twk-btn:hover{background:rgba(0,0,0,.88)}
+  .twk-btn.secondary{background:rgba(0,0,0,.06);color:inherit}
+  .twk-btn.secondary:hover{background:rgba(0,0,0,.1)}
+
+  .twk-swatch{appearance:none;-webkit-appearance:none;width:56px;height:22px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:6px;padding:0;cursor:default;
+    background:transparent;flex-shrink:0}
+  .twk-swatch::-webkit-color-swatch-wrapper{padding:0}
+  .twk-swatch::-webkit-color-swatch{border:0;border-radius:5.5px}
+  .twk-swatch::-moz-color-swatch{border:0;border-radius:5.5px}
+`;
+
+// ── useTweaks ───────────────────────────────────────────────────────────────
+// Single source of truth for tweak values. setTweak persists via the host
+// (__edit_mode_set_keys → host rewrites the EDITMODE block on disk).
+function useTweaks(defaults) {
+  const [values, setValues] = React.useState(defaults);
+  // Accepts either setTweak('key', value) or setTweak({ key: value, ... }) so a
+  // useState-style call doesn't write a "[object Object]" key into the persisted
+  // JSON block.
+  const setTweak = React.useCallback((keyOrEdits, val) => {
+    const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null
+      ? keyOrEdits : { [keyOrEdits]: val };
+    setValues((prev) => ({ ...prev, ...edits }));
+    window.parent.postMessage({ type: '__edit_mode_set_keys', edits }, '*');
+  }, []);
+  return [values, setTweak];
+}
+
+// ── TweaksPanel ─────────────────────────────────────────────────────────────
+// Floating shell. Registers the protocol listener BEFORE announcing
+// availability — if the announce ran first, the host's activate could land
+// before our handler exists and the toolbar toggle would silently no-op.
+// The close button posts __edit_mode_dismissed so the host's toolbar toggle
+// flips off in lockstep; the host echoes __deactivate_edit_mode back which
+// is what actually hides the panel.
+function TweaksPanel({ title = 'Tweaks', children }) {
+  const [open, setOpen] = React.useState(false);
+  const dragRef = React.useRef(null);
+  const offsetRef = React.useRef({ x: 16, y: 16 });
+  const PAD = 16;
+
+  const clampToViewport = React.useCallback(() => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const w = panel.offsetWidth, h = panel.offsetHeight;
+    const maxRight = Math.max(PAD, window.innerWidth - w - PAD);
+    const maxBottom = Math.max(PAD, window.innerHeight - h - PAD);
+    offsetRef.current = {
+      x: Math.min(maxRight, Math.max(PAD, offsetRef.current.x)),
+      y: Math.min(maxBottom, Math.max(PAD, offsetRef.current.y)),
+    };
+    panel.style.right = offsetRef.current.x + 'px';
+    panel.style.bottom = offsetRef.current.y + 'px';
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    clampToViewport();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', clampToViewport);
+      return () => window.removeEventListener('resize', clampToViewport);
+    }
+    const ro = new ResizeObserver(clampToViewport);
+    ro.observe(document.documentElement);
+    return () => ro.disconnect();
+  }, [open, clampToViewport]);
+
+  React.useEffect(() => {
+    const onMsg = (e) => {
+      const t = e?.data?.type;
+      if (t === '__activate_edit_mode') setOpen(true);
+      else if (t === '__deactivate_edit_mode') setOpen(false);
+    };
+    window.addEventListener('message', onMsg);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  const dismiss = () => {
+    setOpen(false);
+    window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*');
+  };
+
+  const onDragStart = (e) => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const r = panel.getBoundingClientRect();
+    const sx = e.clientX, sy = e.clientY;
+    const startRight = window.innerWidth - r.right;
+    const startBottom = window.innerHeight - r.bottom;
+    const move = (ev) => {
+      offsetRef.current = {
+        x: startRight - (ev.clientX - sx),
+        y: startBottom - (ev.clientY - sy),
+      };
+      clampToViewport();
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+
+  if (!open) return null;
+  return (
+    <>
+      <style>{__TWEAKS_STYLE}</style>
+      <div ref={dragRef} className="twk-panel" data-noncommentable=""
+           style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
+        <div className="twk-hd" onMouseDown={onDragStart}>
+          <b>{title}</b>
+          <button className="twk-x" aria-label="Close tweaks"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={dismiss}>✕</button>
+        </div>
+        <div className="twk-body">{children}</div>
+      </div>
+    </>
+  );
+}
+
+// ── Layout helpers ──────────────────────────────────────────────────────────
+
+function TweakSection({ label, children }) {
+  return (
+    <>
+      <div className="twk-sect">{label}</div>
+      {children}
+    </>
+  );
+}
+
+function TweakRow({ label, value, children, inline = false }) {
+  return (
+    <div className={inline ? 'twk-row twk-row-h' : 'twk-row'}>
+      <div className="twk-lbl">
+        <span>{label}</span>
+        {value != null && <span className="twk-val">{value}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ── Controls ────────────────────────────────────────────────────────────────
+
+function TweakSlider({ label, value, min = 0, max = 100, step = 1, unit = '', onChange }) {
+  return (
+    <TweakRow label={label} value={`${value}${unit}`}>
+      <input type="range" className="twk-slider" min={min} max={max} step={step}
+             value={value} onChange={(e) => onChange(Number(e.target.value))} />
+    </TweakRow>
+  );
+}
+
+function TweakToggle({ label, value, onChange }) {
+  return (
+    <div className="twk-row twk-row-h">
+      <div className="twk-lbl"><span>{label}</span></div>
+      <button type="button" className="twk-toggle" data-on={value ? '1' : '0'}
+              role="switch" aria-checked={!!value}
+              onClick={() => onChange(!value)}><i /></button>
+    </div>
+  );
+}
+
+function TweakRadio({ label, value, options, onChange }) {
+  const trackRef = React.useRef(null);
+  const [dragging, setDragging] = React.useState(false);
+  const opts = options.map((o) => (typeof o === 'object' ? o : { value: o, label: o }));
+  const idx = Math.max(0, opts.findIndex((o) => o.value === value));
+  const n = opts.length;
+
+  // The active value is read by pointer-move handlers attached for the lifetime
+  // of a drag — ref it so a stale closure doesn't fire onChange for every move.
+  const valueRef = React.useRef(value);
+  valueRef.current = value;
+
+  const segAt = (clientX) => {
+    const r = trackRef.current.getBoundingClientRect();
+    const inner = r.width - 4;
+    const i = Math.floor(((clientX - r.left - 2) / inner) * n);
+    return opts[Math.max(0, Math.min(n - 1, i))].value;
+  };
+
+  const onPointerDown = (e) => {
+    setDragging(true);
+    const v0 = segAt(e.clientX);
+    if (v0 !== valueRef.current) onChange(v0);
+    const move = (ev) => {
+      if (!trackRef.current) return;
+      const v = segAt(ev.clientX);
+      if (v !== valueRef.current) onChange(v);
+    };
+    const up = () => {
+      setDragging(false);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  return (
+    <TweakRow label={label}>
+      <div ref={trackRef} role="radiogroup" onPointerDown={onPointerDown}
+           className={dragging ? 'twk-seg dragging' : 'twk-seg'}>
+        <div className="twk-seg-thumb"
+             style={{ left: `calc(2px + ${idx} * (100% - 4px) / ${n})`,
+                      width: `calc((100% - 4px) / ${n})` }} />
+        {opts.map((o) => (
+          <button key={o.value} type="button" role="radio" aria-checked={o.value === value}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </TweakRow>
+  );
+}
+
+function TweakSelect({ label, value, options, onChange }) {
+  return (
+    <TweakRow label={label}>
+      <select className="twk-field" value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((o) => {
+          const v = typeof o === 'object' ? o.value : o;
+          const l = typeof o === 'object' ? o.label : o;
+          return <option key={v} value={v}>{l}</option>;
+        })}
+      </select>
+    </TweakRow>
+  );
+}
+
+function TweakText({ label, value, placeholder, onChange }) {
+  return (
+    <TweakRow label={label}>
+      <input className="twk-field" type="text" value={value} placeholder={placeholder}
+             onChange={(e) => onChange(e.target.value)} />
+    </TweakRow>
+  );
+}
+
+function TweakNumber({ label, value, min, max, step = 1, unit = '', onChange }) {
+  const clamp = (n) => {
+    if (min != null && n < min) return min;
+    if (max != null && n > max) return max;
+    return n;
+  };
+  const startRef = React.useRef({ x: 0, val: 0 });
+  const onScrubStart = (e) => {
+    e.preventDefault();
+    startRef.current = { x: e.clientX, val: value };
+    const decimals = (String(step).split('.')[1] || '').length;
+    const move = (ev) => {
+      const dx = ev.clientX - startRef.current.x;
+      const raw = startRef.current.val + dx * step;
+      const snapped = Math.round(raw / step) * step;
+      onChange(clamp(Number(snapped.toFixed(decimals))));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  return (
+    <div className="twk-num">
+      <span className="twk-num-lbl" onPointerDown={onScrubStart}>{label}</span>
+      <input type="number" value={value} min={min} max={max} step={step}
+             onChange={(e) => onChange(clamp(Number(e.target.value)))} />
+      {unit && <span className="twk-num-unit">{unit}</span>}
+    </div>
+  );
+}
+
+function TweakColor({ label, value, onChange }) {
+  return (
+    <div className="twk-row twk-row-h">
+      <div className="twk-lbl"><span>{label}</span></div>
+      <input type="color" className="twk-swatch" value={value}
+             onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+function TweakButton({ label, onClick, secondary = false }) {
+  return (
+    <button type="button" className={secondary ? 'twk-btn secondary' : 'twk-btn'}
+            onClick={onClick}>{label}</button>
+  );
+}
+
+Object.assign(window, {
+  useTweaks, TweaksPanel, TweakSection, TweakRow,
+  TweakSlider, TweakToggle, TweakRadio, TweakSelect,
+  TweakText, TweakNumber, TweakColor, TweakButton,
+});
+
+
+
+
+
+
+</script>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useMemo } = React;
+
+const TWEAKS_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "palette": "moss",
+  "displayFont": "Instrument Serif",
+  "grain": 0.18,
+  "blur": 60,
+  "showSuggestions": true,
+  "compactMessages": false,
+  "tagline": "Today in AI, gently unpacked.",
+  "newsFont": "Bricolage Grotesque",
+  "preloadDemo": true
+} /*EDITMODE-END*/;
+
+// ---------- palettes ----------
+const PALETTES = {
+  moss: {
+    name: "Moss & Ember",
+    bg: "#f4ede1", ink: "#1f1d18", muted: "#6b6557",
+    blobs: ["#5a6b3d", "#c66a3a", "#d9a05b", "#3a4a3c"],
+    accent: "#5a6b3d",
+    bubbleAi: "rgba(255,253,247,0.72)",
+    bubbleUser: "#1f1d18", bubbleUserInk: "#f4ede1",
+    cardBg: "rgba(255,253,247,0.78)"
+  },
+  rose: {
+    name: "Rose Dust",
+    bg: "#f1e3da", ink: "#2a1f1c", muted: "#7a6660",
+    blobs: ["#c98c8c", "#d9a89a", "#a86e6e", "#e9b48a"],
+    accent: "#a86e6e",
+    bubbleAi: "rgba(255,250,245,0.74)",
+    bubbleUser: "#2a1f1c", bubbleUserInk: "#f1e3da",
+    cardBg: "rgba(255,250,245,0.82)"
+  },
+  ochre: {
+    name: "Ochre Field",
+    bg: "#f3e7c6", ink: "#211c11", muted: "#6e6347",
+    blobs: ["#caa14a", "#8a6b2e", "#d97a3a", "#5a5a2c"],
+    accent: "#8a6b2e",
+    bubbleAi: "rgba(255,251,238,0.76)",
+    bubbleUser: "#211c11", bubbleUserInk: "#f3e7c6",
+    cardBg: "rgba(255,251,238,0.84)"
+  },
+  teal: {
+    name: "Teal Dusk",
+    bg: "#e6e7e1", ink: "#15201f", muted: "#5a6562",
+    blobs: ["#3d6b66", "#2a4a4a", "#a89a6a", "#c4836a"],
+    accent: "#3d6b66",
+    bubbleAi: "rgba(252,253,250,0.74)",
+    bubbleUser: "#15201f", bubbleUserInk: "#e6e7e1",
+    cardBg: "rgba(252,253,250,0.82)"
+  }
+};
+
+const FONTS = {
+  "Instrument Serif": "'Instrument Serif', 'Cormorant Garamond', Georgia, serif",
+  "Fraunces": "'Fraunces', 'Cormorant Garamond', Georgia, serif",
+  "DM Serif Display": "'DM Serif Display', 'Cormorant Garamond', Georgia, serif"
+};
+const NEWS_FONTS = {
+  "Bricolage Grotesque": "'Bricolage Grotesque', sans-serif",
+  "Space Grotesk": "'Space Grotesk', sans-serif",
+  "Major Mono": "'Major Mono Display', monospace"
+};
+
+// ---------- Auth: corporate domain + taxonomy ----------
+const CORPORATE_DOMAIN = "microsoft.com";
+
+const DEPARTMENTS = [
+  "Engineering",
+  "Cloud + AI",
+  "Azure",
+  "Research",
+  "Product",
+  "Security",
+  "Marketing",
+  "Sales",
+  "Customer Success",
+  "Consulting Services",
+  "Legal & Compliance",
+  "Finance",
+  "Operations",
+  "HR / People",
+  "Other"
+];
+
+const REGIONS_AUTH = [
+  { id: "na",    label: "North America" },
+  { id: "eu",    label: "Europe" },
+  { id: "china", label: "Greater China" },
+  { id: "apac",  label: "Asia Pacific" },
+  { id: "india", label: "India" },
+  { id: "latam", label: "Latin America" },
+  { id: "mea",   label: "Middle East & Africa" }
+];
+
+function readSession() {
+  try { const raw = localStorage.getItem('mai_user'); return raw ? JSON.parse(raw) : null; }
+  catch (e) { return null; }
+}
+function writeSession(u) {
+  try {
+    if (u) localStorage.setItem('mai_user', JSON.stringify(u));
+    else localStorage.removeItem('mai_user');
+  } catch (e) {}
+}
+
+// ---------- Grain ----------
+const grainSvg = (opacity) => `data:image/svg+xml;utf8,${encodeURIComponent(`
+<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'>
+  <filter id='n'>
+    <feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/>
+    <feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 ${opacity} 0'/>
+  </filter>
+  <rect width='100%' height='100%' filter='url(#n)'/>
+</svg>`)}`;
+
+function Backdrop({ palette, blur, grain }) {
+  return (
+    <div className="backdrop" aria-hidden="true">
+      <div className="bd-base" style={{ background: palette.bg }} />
+      <div className="bd-blobs" style={{ filter: `blur(${blur}px) saturate(0.95)` }}>
+        <span className="blob b1" style={{ background: palette.blobs[0] }} />
+        <span className="blob b2" style={{ background: palette.blobs[1] }} />
+        <span className="blob b3" style={{ background: palette.blobs[2] }} />
+        <span className="blob b4" style={{ background: palette.blobs[3] }} />
+      </div>
+      <div className="bd-grain" style={{ backgroundImage: `url("${grainSvg(grain)}")` }} />
+      <div className="bd-vignette" />
+    </div>);
+
+}
+
+function MaiMark({ palette, size = 36 }) {
+  return (
+    <div className="mai-mark" style={{ width: size, height: size }}>
+      <div className="mm-grain" style={{ background: `radial-gradient(circle at 30% 30%, ${palette.blobs[1]}, ${palette.blobs[0]} 55%, ${palette.blobs[3]} 100%)` }} />
+      <div className="mm-grain-overlay" style={{ backgroundImage: `url("${grainSvg(0.35)}")` }} />
+    </div>);
+
+}
+
+// ---------- Brand wordmark: MAI news ----------
+function Wordmark({ palette, displayFont, newsFont, size = 26 }) {
+  return (
+    <span className="wordmark" style={{ color: palette.ink }}>
+      <span className="wm-mai" style={{ fontFamily: FONTS[displayFont], fontSize: size }}>MAI</span>
+      <span className="wm-news" style={{ fontFamily: NEWS_FONTS[newsFont], fontSize: size * 0.5, color: palette.accent }}>news</span>
+    </span>);
+
+}
+
+// ---------- Suggestion chips (AI-news only) ----------
+const TOPIC_SUGGESTIONS_MAP = {
+  ai_ml:     [{ label: "Latest LLM benchmarks", prompt: "What are the latest LLM benchmarks?" },
+              { label: "Frontier model releases", prompt: "Walk me through frontier model releases this week." }],
+  cyber:     [{ label: "Top cybersecurity threats", prompt: "What are the biggest cybersecurity threats right now?" },
+              { label: "Recent data breaches", prompt: "Walk me through the most significant recent data breaches." }],
+  cloud:     [{ label: "Cloud infrastructure news", prompt: "What's new in cloud infrastructure this week?" },
+              { label: "AWS vs Azure vs GCP", prompt: "How are the major cloud providers competing right now?" }],
+  softdev:   [{ label: "AI coding tools", prompt: "What's new in AI-assisted coding tools?" }],
+  hardware:  [{ label: "Chip industry updates", prompt: "What's happening in the semiconductor industry?" }],
+  privacy:   [{ label: "Data privacy news", prompt: "What are the latest data privacy developments?" }],
+  quantum:   [{ label: "Quantum computing milestones", prompt: "What's the latest in quantum computing?" }],
+  robotics:  [{ label: "Robotics & automation", prompt: "What's new in robotics and automation?" }],
+  fintech:   [{ label: "Fintech & payments news", prompt: "What's happening in fintech and payments?" }],
+  health:    [{ label: "AI in healthcare", prompt: "How is AI being used in healthcare right now?" }],
+  cleantech: [{ label: "Clean tech updates", prompt: "What's new in clean tech and sustainability?" }],
+  space:     [{ label: "Space tech news", prompt: "What's happening in the space industry this week?" }],
+  xr:        [{ label: "AR/VR & metaverse", prompt: "What's new in AR, VR, and the metaverse?" }],
+  ma:        [{ label: "M&A & funding deals", prompt: "What are the biggest funding and M&A deals this week?" }],
+  ipo:       [{ label: "IPO & markets", prompt: "What's happening with tech IPOs and markets?" }],
+  bigtech:   [{ label: "Big tech news", prompt: "What's the latest from the major tech companies?" }],
+  startups:  [{ label: "Startup & VC news", prompt: "What startups are getting attention right now?" }],
+  layoffs:   [{ label: "Tech layoffs & hiring", prompt: "What's happening with tech layoffs and hiring?" }],
+  earnings:  [{ label: "Tech earnings", prompt: "What are the latest tech company earnings highlights?" }],
+  ai_reg:    [{ label: "AI regulation updates", prompt: "What's happening with AI regulation globally?" }],
+  gdpr:      [{ label: "Data protection news", prompt: "What are the latest GDPR and data protection updates?" }],
+  antitrust: [{ label: "Antitrust & competition", prompt: "What's new in tech antitrust cases?" }],
+  exports:   [{ label: "Export controls & sanctions", prompt: "What are the latest tech export control updates?" }],
+  digiinfra: [{ label: "Digital infrastructure policy", prompt: "What's new in digital infrastructure policy?" }],
+  cyberpol:  [{ label: "Cybersecurity policy", prompt: "What's happening in cybersecurity policy?" }],
+  platform:  [{ label: "Platform regulation", prompt: "What's the latest in platform regulation?" }],
+};
+const SUGGESTIONS_FALLBACK = [
+  { label: "Latest LLM benchmarks", prompt: "What are the latest LLM benchmarks?" },
+  { label: "Frontier model releases this week", prompt: "Walk me through frontier model releases this week." },
+  { label: "AI policy in the EU", prompt: "Catch me up on AI policy in the EU." },
+  { label: "Open vs. closed models", prompt: "Where does the open-vs-closed model debate stand right now?" }
+];
+function getSuggestions(prefs) {
+  const topics = (prefs && prefs.topics && prefs.topics.length > 0) ? prefs.topics : [];
+  if (topics.length === 0) return SUGGESTIONS_FALLBACK;
+  const seen = new Set(); const result = [];
+  for (const t of topics) {
+    for (const s of (TOPIC_SUGGESTIONS_MAP[t] || [])) {
+      if (!seen.has(s.label) && result.length < 4) { seen.add(s.label); result.push(s); }
+    }
+  }
+  return result.length > 0 ? result : SUGGESTIONS_FALLBACK;
+}
+
+
+// ---------- Pre-seeded LLM benchmark cards ----------
+const BENCHMARK_CARDS = [
+{
+  id: "c1",
+  source: "Artificial Analysis",
+  time: "2h ago",
+  kind: "Benchmark",
+  title: "GPT-5.1 edges Claude 4.5 on reasoning, trails on long-context recall",
+  blurb: "On the latest combined index, GPT-5.1 takes the lead on math and code, while Claude 4.5 holds long-context retrieval and tool-use. Gemini 3 closes the gap.",
+  tone: "lead",
+  tag: "Reasoning"
+},
+{
+  id: "c2",
+  source: "LMSys Arena",
+  time: "5h ago",
+  kind: "Leaderboard",
+  title: "Open-weights climb: Llama 4.1 enters Arena top five for the first time",
+  blurb: "Crowd-rated head-to-head puts Meta's Llama 4.1 within 18 Elo of the leading closed model. DeepSeek-R2 and Qwen 3 follow closely behind.",
+  tone: "calm",
+  tag: "Open weights"
+},
+{
+  id: "c3",
+  source: "MMLU-Pro",
+  time: "Yesterday",
+  kind: "Analysis",
+  title: "Saturation watch: top scores cluster within two points",
+  blurb: "Five frontier models now score within a narrow band on MMLU-Pro. Researchers argue the benchmark is approaching its ceiling and call for harder evals.",
+  tone: "calm",
+  tag: "Saturation"
+},
+{
+  id: "c4",
+  source: "SWE-bench Verified",
+  time: "Yesterday",
+  kind: "Coding",
+  title: "Agentic coding scores jump 11 points after new tool-use protocol",
+  blurb: "After adopting a standardized tool-use schema, three frontier models posted double-digit gains on real-world software engineering tasks.",
+  tone: "calm",
+  tag: "Agents"
+}];
+
+
+// ---------- Action chips inside AI cards section ----------
+const CARD_ACTIONS = [
+{ id: "report", label: "Make a report", icon: "doc" },
+{ id: "compare", label: "Compare models", icon: "compare" },
+{ id: "explore", label: "Explore deeper", icon: "compass" },
+{ id: "save", label: "Save thread", icon: "bookmark" }];
+
+
+const FOLLOWUPS = [
+"Which benchmarks should I actually trust?",
+"How is GPT-5.1 different from Claude 4.5 in practice?",
+"Show me the open-weights leaderboard.",
+"Draft me a one-page summary I can share."];
+
+
+function Icon({ name, size = 14 }) {
+  const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.6, strokeLinecap: "round", strokeLinejoin: "round" };
+  const map = {
+    doc: <g {...stroke}><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v4h4" /><path d="M9 13h6M9 17h6M9 9h2" /></g>,
+    compare: <g {...stroke}><path d="M3 7h7M3 7l3-3M3 7l3 3" /><path d="M21 17h-7M21 17l-3-3M21 17l-3 3" /></g>,
+    compass: <g {...stroke}><circle cx="12" cy="12" r="9" /><path d="m15 9-4 2-2 4 4-2 2-4z" /></g>,
+    bookmark: <g {...stroke}><path d="M6 4h12v17l-6-4-6 4z" /></g>,
+    arrow: <g {...stroke}><path d="M5 12h14M13 6l6 6-6 6" /></g>,
+    external: <g {...stroke}><path d="M14 5h5v5" /><path d="M19 5l-9 9" /><path d="M19 14v5H5V5h5" /></g>,
+    sparkle: <g {...stroke}><path d="M12 4v6M12 14v6M4 12h6M14 12h6" /></g>
+  };
+  return <svg width={size} height={size} viewBox="0 0 24 24">{map[name] || null}</svg>;
+}
+
+// ---------- News card ----------
+function NewsCard({ card, palette, onAction }) {
+  const isLead = card.tone === "lead";
+  return (
+    <article
+      className={`ncard ${isLead ? "ncard-lead" : ""}`}
+      style={{
+        background: palette.cardBg,
+        borderColor: "rgba(0,0,0,0.07)",
+        color: palette.ink
+      }}>
+      
+      <div className="ncard-meta" style={{ color: palette.muted }}>
+        <span className="ncard-source">{card.source}</span>
+        <span className="ncard-dot">·</span>
+        <span>{card.time}</span>
+        <span className="ncard-tag" style={{ background: palette.ink, color: palette.bg }}>{card.tag}</span>
+      </div>
+      <h3 className="ncard-title" style={{ color: palette.ink }}>{card.title}</h3>
+      <p className="ncard-blurb" style={{ color: palette.muted }}>{card.blurb}</p>
+      <div className="ncard-actions">
+        <button className="ncard-link" onClick={() => onAction("read", card)} style={{ color: palette.ink }}>
+          Read article <Icon name="external" size={12} />
+        </button>
+        <button className="ncard-link soft" onClick={() => onAction("more", card)} style={{ color: palette.muted }}>
+          Explore more
+        </button>
+      </div>
+    </article>);
+
+}
+
+function CardsBlock({ cards, palette, onAction, onActionChip, onFollowup }) {
+  return (
+    <div className="cards-block">
+      <div className="cards-grid">
+        {cards.map((c) => <NewsCard key={c.id} card={c} palette={palette} onAction={onAction} />)}
+      </div>
+      <div className="action-row">
+        {CARD_ACTIONS.map((a) =>
+        <button
+          key={a.id}
+          className="action-chip"
+          onClick={() => onActionChip(a)}
+          style={{ color: palette.ink, borderColor: "rgba(0,0,0,0.12)", background: "rgba(255,253,247,0.6)" }}>
+          
+            <Icon name={a.icon} />
+            <span>{a.label}</span>
+          </button>
+        )}
+      </div>
+      <div className="followups">
+        <div className="followups-label" style={{ color: palette.muted }}>Or ask</div>
+        {FOLLOWUPS.map((f) =>
+        <button
+          key={f}
+          className="followup"
+          onClick={() => onFollowup(f)}
+          style={{ color: palette.ink, borderColor: "rgba(0,0,0,0.08)" }}>
+          
+            <span>{f}</span>
+            <Icon name="arrow" size={13} />
+          </button>
+        )}
+      </div>
+    </div>);
+
+}
+
+// ---------- Message ----------
+function Message({ msg, palette, displayFont, compact, onAction, onActionChip, onFollowup }) {
+  const isUser = msg.role === "user";
+  return (
+    <div className={`msg ${isUser ? "msg-user" : "msg-ai"} ${compact ? "msg-compact" : ""}`}>
+      {!isUser &&
+      <div className="msg-byline" style={{ fontFamily: FONTS[displayFont], color: palette.muted }}>
+          MAI
+        </div>
+      }
+      {msg.thinking ?
+      <div className="bubble bubble-ai" style={{ background: palette.bubbleAi, color: palette.ink, borderColor: "rgba(0,0,0,0.06)" }}>
+          <span className="thinking"><span className="dot" /><span className="dot" /><span className="dot" /></span>
+        </div> :
+
+      <>
+          {msg.content &&
+        <div
+          className={`bubble ${isUser ? "bubble-user" : "bubble-ai"}`}
+          style={isUser ?
+          { background: palette.bubbleUser, color: palette.bubbleUserInk } :
+          { background: palette.bubbleAi, color: palette.ink, borderColor: "rgba(0,0,0,0.06)" }}>
+          
+              <span className="bubble-text">{msg.content}</span>
+            </div>
+        }
+          {msg.cards &&
+        <CardsBlock
+          cards={msg.cards}
+          palette={palette}
+          onAction={onAction}
+          onActionChip={onActionChip}
+          onFollowup={onFollowup} />
+
+        }
+        </>
+      }
+    </div>);
+
+}
+
+// ---------- Composer ----------
+function Composer({ value, setValue, onSend, palette, disabled }) {
+  const taRef = useRef(null);
+  useEffect(() => {
+    const el = taRef.current;if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 220) + "px";
+  }, [value]);
+
+  return (
+    <form className="composer" onSubmit={(e) => {e.preventDefault();onSend();}}>
+      <div className="composer-inner" style={{ background: "rgba(255,253,247,0.86)" }}>
+        <MaiMark palette={palette} size={28} />
+        <textarea
+          ref={taRef}
+          className="composer-input"
+          placeholder="Ask about a model, a benchmark, a paper…"
+          rows={1}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {e.preventDefault();onSend();}
+          }}
+          style={{ color: palette.ink }} />
+        
+        <div className="composer-actions">
+          <button type="button" className="icon-btn" title="Voice" aria-label="Voice" style={{ color: palette.muted }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="9" y="3" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0" /><path d="M12 18v3" />
+            </svg>
+          </button>
+          <button type="submit" className="send-btn" disabled={disabled || !value.trim()} style={{ background: palette.ink, color: palette.bg }} aria-label="Send">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14" /><path d="m13 6 6 6-6 6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div className="composer-foot" style={{ color: palette.muted }}>
+        <span>MAI reads widely but isn't always right. Cross-check what matters. Press <kbd>↵</kbd> to send.</span>
+      </div>
+    </form>);
+
+}
+
+// ---------- Sidebar ----------
+function Sidebar({ palette, displayFont, newsFont, threads, activeId, onSelect, onNew, onDelete, onPin, user, onLogout }) {
+  const regionLabel = (REGIONS_AUTH.find((r) => r.id === user?.region) || {}).label;
+  const initial = (user?.name || 'M').trim().charAt(0).toLowerCase();
+  return (
+    <aside className="sidebar">
+      <div className="side-head">
+        <div className="brand">
+          <MaiMark palette={palette} size={32} />
+          <Wordmark palette={palette} displayFont={displayFont} newsFont={newsFont} size={26} />
+        </div>
+        <button className="new-btn" onClick={onNew} style={{ color: palette.ink, borderColor: "rgba(0,0,0,0.12)" }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+          New
+        </button>
+      </div>
+
+      <div className="side-section-label" style={{ color: palette.muted }}>Today's threads</div>
+      <ul className="thread-list">
+        {threads.map((t) =>
+        <li key={t.id} className="thread-row">
+            <button
+            className={`thread-item ${t.id === activeId ? "active" : ""}`}
+            onClick={() => onSelect(t.id)}
+            style={{ color: palette.ink }}>
+              {t.pinned && <span className="t-pin-mark">↑</span>}
+              <span className="t-title">{t.title}</span>
+              <span className="t-time" style={{ color: palette.muted }}>{t.time}</span>
+            </button>
+            <div className="thread-acts">
+              <button className="t-act" title={t.pinned ? "Unpin" : "Pin to top"} style={{ color: palette.muted }}
+                onClick={(e) => { e.stopPropagation(); onPin(t.id); }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill={t.pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2v10M12 12l-4 4M12 12l4 4M8 21h8" />
+                </svg>
+              </button>
+              <button className="t-act" title="Delete chat" style={{ color: palette.muted }}
+                onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                </svg>
+              </button>
+            </div>
+          </li>
+        )}
+      </ul>
+
+      <div className="side-foot" style={{ color: palette.muted, borderColor: "rgba(0,0,0,0.08)" }}>
+        <div className="user-row">
+          <div className="avatar" style={{ background: palette.accent, color: palette.bg }}>{initial}</div>
+          <div className="user-meta">
+            <div style={{ color: palette.ink }}>{user?.name || 'Guest'}</div>
+            <div>{user?.department || 'No department'}{regionLabel ? ' · ' + regionLabel : ''}</div>
+          </div>
+          <button className="signout-btn" onClick={onLogout} title="Sign out" aria-label="Sign out" style={{ color: palette.muted }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg>
+          </button>
+        </div>
+      </div>
+    </aside>);
+
+}
+
+// ---------- News preferences (aligned with sources.json taxonomy) ----------
+const PREF_ROLES = [
+  { id: "engineer", label: "For engineers",        note: "Technical depth — model details, code, infra",     defaultDepth: "deep"  },
+  { id: "business", label: "For business & sales", note: "Markets, deals, what to tell customers",          defaultDepth: "brief" },
+  { id: "legal",    label: "For legal & compliance", note: "Regulation, antitrust, privacy law",            defaultDepth: "brief" },
+  { id: "exec",     label: "For executives",       note: "Strategic, high-level signals",                   defaultDepth: "brief" },
+  { id: "research", label: "For researchers",      note: "Papers, benchmarks, deep technical reads",        defaultDepth: "deep"  }
+];
+
+const TOPIC_GROUPS = [
+  {
+    id: "topic",
+    label: "Technology",
+    note: "Core tech beats",
+    items: [
+      { id: "ai_ml",      label: "AI & ML" },
+      { id: "cyber",      label: "Cybersecurity" },
+      { id: "cloud",      label: "Cloud & Infrastructure" },
+      { id: "softdev",    label: "Software Development" },
+      { id: "hardware",   label: "Hardware & Chips" },
+      { id: "privacy",    label: "Data & Privacy" },
+      { id: "quantum",    label: "Quantum Computing" },
+      { id: "robotics",   label: "Robotics & Automation" },
+      { id: "fintech",    label: "Fintech & Payments" },
+      { id: "health",     label: "Health & Biotech" },
+      { id: "cleantech",  label: "Clean Tech & Sustainability" },
+      { id: "space",      label: "Space & Satellites" },
+      { id: "xr",         label: "Metaverse & XR" }
+    ]
+  },
+  {
+    id: "business",
+    label: "Business",
+    note: "Money, deals, who's hiring",
+    items: [
+      { id: "ma",         label: "M&A & Funding" },
+      { id: "ipo",        label: "IPO & Markets" },
+      { id: "bigtech",    label: "Big Tech (FAANG+Microsoft)" },
+      { id: "startups",   label: "Startups & Venture" },
+      { id: "layoffs",    label: "Layoffs & Hiring" },
+      { id: "earnings",   label: "Earnings & Revenue" }
+    ]
+  },
+  {
+    id: "regulation",
+    label: "Regulation & Policy",
+    note: "Rules of the game",
+    items: [
+      { id: "ai_reg",     label: "AI Regulation" },
+      { id: "gdpr",       label: "Data Protection (GDPR, DPDP, LGPD)" },
+      { id: "antitrust",  label: "Antitrust & Competition" },
+      { id: "exports",    label: "Export Controls & Sanctions" },
+      { id: "digiinfra",  label: "Digital Infrastructure Policy" },
+      { id: "cyberpol",   label: "Cybersecurity Policy" },
+      { id: "platform",   label: "Platform Regulation" }
+    ]
+  }
+];
+
+const PREF_DEPTHS = [
+  { id: "deep",  label: "Deep dive", note: "IC level — long-form, technical, with full context" },
+  { id: "brief", label: "Brief",     note: "Exec level — short, decision-focused, no jargon" }
+];
+
+const PREF_DELIVERY = [
+  { id: "daily",    label: "Daily brief",          note: "Every morning, ranked and deduplicated" },
+  { id: "weekly",   label: "Weekly digest",        note: "One Sunday long-read of what mattered" },
+  { id: "breaking", label: "Breaking-news alerts", note: "Only when your keywords show up" }
+];
+
+const PREF_TONES = [
+  { id: "calm",      label: "Calm & editorial" },
+  { id: "plain",     label: "Plain & direct" },
+  { id: "technical", label: "Technical" }
+];
+
+function PrefsDeck({ open, onClose, palette, displayFont, newsFont, prefs, setPrefs, onSave, user }) {
+  const [step, setStep] = useState(0);
+  const bodyRef = useRef(null);
+  const steps = ["Role", "Region", "Topics", "Depth", "Delivery", "Voice"];
+  useEffect(() => { if (open) setStep(0); }, [open]);
+  useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [step]);
+  if (!open) return null;
+
+  const toggleArr = (key, id) => {
+    const arr = prefs[key] || [];
+    setPrefs({ ...prefs, [key]: arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id] });
+  };
+  const setOne = (key, id) => setPrefs({ ...prefs, [key]: id });
+
+  // Role: auto-prefill depth based on role
+  const pickRole = (roleId) => {
+    const role = PREF_ROLES.find((r) => r.id === roleId);
+    setPrefs({ ...prefs, role: roleId, depth: prefs.depth || role.defaultDepth });
+  };
+
+  const next = () => setStep((s) => Math.min(s + 1, steps.length - 1));
+  const prev = () => setStep((s) => Math.max(s - 1, 0));
+
+  return (
+    <div className="prefs-overlay" onClick={onClose}>
+      <div className="prefs-deck" onClick={(e) => e.stopPropagation()} style={{ background: palette.bg, color: palette.ink, borderColor: "rgba(0,0,0,0.08)" }}>
+        <div className="prefs-grain" style={{ backgroundImage: `url("${grainSvg(0.12)}")` }} />
+        <button className="prefs-close" onClick={onClose} aria-label="Close" style={{ color: palette.muted }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+
+        <header className="prefs-head">
+          <div className="prefs-eyebrow" style={{ color: palette.muted }}>Your reading preferences</div>
+          <h2 className="prefs-title" style={{ fontFamily: FONTS[displayFont], color: palette.ink }}>
+            Tune your <span className="prefs-news" style={{ fontFamily: NEWS_FONTS[newsFont], color: palette.accent }}>news</span>
+          </h2>
+          <p className="prefs-sub" style={{ color: palette.muted }}>A few quiet choices. MAI uses them to shape every briefing.</p>
+
+          <div className="prefs-stepper">
+            {steps.map((s, i) => (
+              <button key={s} className={`prefs-step ${i === step ? "active" : ""} ${i < step ? "done" : ""}`} onClick={() => setStep(i)} style={{ color: i === step ? palette.ink : palette.muted }}>
+                <span className="prefs-step-num" style={{ borderColor: i === step ? palette.ink : "rgba(0,0,0,0.2)" }}>{String(i+1).padStart(2,"0")}</span>
+                <span>{s}</span>
+              </button>
+            ))}
+          </div>
+        </header>
+
+        <div className="prefs-body" ref={bodyRef}>
+          {step === 0 && (
+            <div className="prefs-pane">
+              <div className="prefs-pane-q" style={{ fontFamily: FONTS[displayFont] }}>What's your angle on tech?</div>
+              <div className="prefs-pane-h" style={{ color: palette.muted }}>I'll match content, depth, and tone to your role. You can override anything later.</div>
+              <div className="prefs-radio-col">
+                {PREF_ROLES.map((r) => {
+                  const on = prefs.role === r.id;
+                  return (
+                    <button key={r.id} className={`prefs-radio ${on ? "on" : ""}`} onClick={() => pickRole(r.id)}
+                      style={{ color: palette.ink, borderColor: on ? palette.ink : "rgba(0,0,0,0.1)", background: on ? palette.cardBg : "rgba(255,253,247,0.4)" }}>
+                      <div className="prefs-radio-dot" style={{ borderColor: palette.ink, background: on ? palette.ink : "transparent" }} />
+                      <div>
+                        <div className="prefs-radio-label" style={{ fontFamily: FONTS[displayFont] }}>{r.label}</div>
+                        <div className="prefs-radio-note" style={{ color: palette.muted }}>{r.note}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {step === 1 && (
+            <div className="prefs-pane">
+              <div className="prefs-pane-q" style={{ fontFamily: FONTS[displayFont] }}>Which region matters most to you?</div>
+              <div className="prefs-pane-h" style={{ color: palette.muted }}>Pre-filled from your signup. Change anytime — I'll still surface global stories that affect your region.</div>
+              <div className="prefs-region-grid">
+                {REGIONS_AUTH.map((r) => {
+                  const on = (prefs.region || user?.region) === r.id;
+                  return (
+                    <button key={r.id} className={`prefs-region ${on ? "on" : ""}`} onClick={() => setOne("region", r.id)}
+                      style={on
+                        ? { background: palette.ink, color: palette.bg, borderColor: palette.ink }
+                        : { color: palette.ink, borderColor: "rgba(0,0,0,0.14)", background: "rgba(255,253,247,0.5)" }}>
+                      <span>{r.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="prefs-pane">
+              <div className="prefs-pane-q" style={{ fontFamily: FONTS[displayFont] }}>What corners of tech matter to you?</div>
+              <div className="prefs-pane-h" style={{ color: palette.muted }}>Pick as many as you like across three groups. You can change this anytime.</div>
+              {TOPIC_GROUPS.map((group) => (
+                <div key={group.id} className="prefs-group">
+                  <div className="prefs-group-head">
+                    <div className="prefs-group-label" style={{ fontFamily: FONTS[displayFont], color: palette.ink }}>{group.label}</div>
+                    <div className="prefs-group-note" style={{ color: palette.muted }}>{group.note}</div>
+                  </div>
+                  <div className="prefs-chips">
+                    {group.items.map((t) => {
+                      const on = (prefs.topics || []).includes(t.id);
+                      return (
+                        <button key={t.id} className={`prefs-chip ${on ? "on" : ""}`} onClick={() => toggleArr("topics", t.id)}
+                          style={on ? { background: palette.ink, color: palette.bg, borderColor: palette.ink } : { color: palette.ink, borderColor: "rgba(0,0,0,0.14)", background: "rgba(255,253,247,0.55)" }}>
+                          <span className="prefs-chip-mark">{on ? "✓" : "+"}</span>
+                          <span>{t.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="prefs-pane">
+              <div className="prefs-pane-q" style={{ fontFamily: FONTS[displayFont] }}>How deep should I go?</div>
+              <div className="prefs-pane-h" style={{ color: palette.muted }}>Pre-set from your role. You can always ask for more or less in chat.</div>
+              <div className="prefs-radio-col">
+                {PREF_DEPTHS.map((d) => {
+                  const on = prefs.depth === d.id;
+                  return (
+                    <button key={d.id} className={`prefs-radio ${on ? "on" : ""}`} onClick={() => setOne("depth", d.id)}
+                      style={{ color: palette.ink, borderColor: on ? palette.ink : "rgba(0,0,0,0.1)", background: on ? palette.cardBg : "rgba(255,253,247,0.4)" }}>
+                      <div className="prefs-radio-dot" style={{ borderColor: palette.ink, background: on ? palette.ink : "transparent" }} />
+                      <div>
+                        <div className="prefs-radio-label" style={{ fontFamily: FONTS[displayFont] }}>{d.label}</div>
+                        <div className="prefs-radio-note" style={{ color: palette.muted }}>{d.note}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="prefs-pane">
+              <div className="prefs-pane-q" style={{ fontFamily: FONTS[displayFont] }}>When should I bring you the news?</div>
+              <div className="prefs-pane-h" style={{ color: palette.muted }}>Choose a rhythm. No streaks. No notifications you didn't ask for.</div>
+              <div className="prefs-radio-col">
+                {PREF_DELIVERY.map((c) => {
+                  const on = (prefs.delivery || []).includes(c.id);
+                  return (
+                    <button key={c.id} className={`prefs-radio ${on ? "on" : ""}`} onClick={() => toggleArr("delivery", c.id)}
+                      style={{ color: palette.ink, borderColor: on ? palette.ink : "rgba(0,0,0,0.1)", background: on ? palette.cardBg : "rgba(255,253,247,0.4)" }}>
+                      <div className="prefs-radio-dot" style={{ borderColor: palette.ink, background: on ? palette.ink : "transparent" }} />
+                      <div style={{ flex: 1 }}>
+                        <div className="prefs-radio-label" style={{ fontFamily: FONTS[displayFont] }}>{c.label}</div>
+                        <div className="prefs-radio-note" style={{ color: palette.muted }}>{c.note}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {(prefs.delivery || []).includes("breaking") && (
+                <div className="prefs-keywords">
+                  <label className="prefs-keywords-label" style={{ color: palette.muted }}>Keywords for breaking-news alerts</label>
+                  <input type="text" className="prefs-keywords-input"
+                    placeholder="GPT-5, Copilot, EU AI Act, NVIDIA, OpenAI…"
+                    value={prefs.keywords || ""}
+                    onChange={(e) => setPrefs({ ...prefs, keywords: e.target.value })}
+                    style={{ color: palette.ink, borderColor: "rgba(0,0,0,0.16)" }} />
+                  <p className="prefs-keywords-hint" style={{ color: palette.muted }}>Comma-separated. I'll only ping you when these show up.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {step === 5 && (
+            <div className="prefs-pane">
+              <div className="prefs-pane-q" style={{ fontFamily: FONTS[displayFont] }}>What voice suits you?</div>
+              <div className="prefs-pane-h" style={{ color: palette.muted }}>Extra personalization — not required, but I'll match your rhythm if you choose.</div>
+              <div className="prefs-radio-col">
+                {PREF_TONES.map((d) => {
+                  const on = prefs.tone === d.id;
+                  return (
+                    <button key={d.id} className={`prefs-radio ${on ? "on" : ""}`} onClick={() => setOne("tone", d.id)}
+                      style={{ color: palette.ink, borderColor: on ? palette.ink : "rgba(0,0,0,0.1)", background: on ? palette.cardBg : "rgba(255,253,247,0.4)" }}>
+                      <div className="prefs-radio-dot" style={{ borderColor: palette.ink, background: on ? palette.ink : "transparent" }} />
+                      <div className="prefs-radio-label" style={{ fontFamily: FONTS[displayFont] }}>{d.label}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="prefs-slider-row">
+                <label className="prefs-slider-label" style={{ color: palette.muted }}>Quiet ↔ Lively</label>
+                <input type="range" min="0" max="100" value={prefs.energy ?? 35} onChange={(e) => setPrefs({ ...prefs, energy: +e.target.value })} className="prefs-slider" />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <footer className="prefs-foot" style={{ borderColor: "rgba(0,0,0,0.08)" }}>
+          <button className="prefs-back" onClick={prev} disabled={step === 0} style={{ color: palette.muted }}>← Back</button>
+          <div className="prefs-progress" style={{ color: palette.muted }}>{String(step+1).padStart(2,"0")} – {String(steps.length).padStart(2,"0")}</div>
+          {step < steps.length - 1 ? (
+            <button className="prefs-next" onClick={next} style={{ background: palette.ink, color: palette.bg }}>Continue →</button>
+          ) : (
+            <button className="prefs-next" onClick={onSave} style={{ background: palette.ink, color: palette.bg }}>Save preferences</button>
+          )}
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Toast ----------
+function Toast({ text, onDone }) {
+  useEffect(() => {
+    if (!text) return;
+    const t = setTimeout(onDone, 2200);
+    return () => clearTimeout(t);
+  }, [text]);
+  if (!text) return null;
+  return <div className="toast">{text}</div>;
+}
+
+// ---------- Microsoft SSO — handled by window.msalLogin (see <script> in <head>) ----------
+
+// ---------- Auth Gate ----------
+function AuthGate({ palette, displayFont, newsFont, blur, grain, onAuthed, mode, setMode }) {
+  const [form, setForm] = useState({ email: '', name: '', department: '', region: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const validateCorporateEmail = (email) => {
+    const e = String(email || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return "Enter a valid email address.";
+    return null;
+  };
+
+  const handleAuth = (msalUser) => {
+    const finalUser = {
+      ...msalUser,
+      name:       (mode === 'signup' && form.name.trim())   ? form.name.trim()   : msalUser.name,
+      department: (mode === 'signup' && form.department)    ? form.department    : msalUser.department,
+      region:     (mode === 'signup' && form.region)        ? form.region        : msalUser.region,
+    };
+    writeSession(finalUser);
+    setLoading(false);
+    onAuthed(finalUser);
+  };
+
+  const submit = (e) => {
+    e.preventDefault();
+    setError('');
+    const emailErr = validateCorporateEmail(form.email);
+    if (emailErr) return setError(emailErr);
+
+    if (mode === 'signup') {
+      if (!form.name.trim()) return setError("Please enter your name.");
+      if (!form.department) return setError("Please choose your department.");
+      if (!form.region) return setError("Please choose your region.");
+    }
+
+    setLoading(true);
+    window.msalLogin(
+      form.email.trim(),
+      handleAuth,
+      (msg) => { setLoading(false); setError(msg); }
+    );
+  };
+
+  const ssoSignin = () => {
+    setError('');
+    setLoading(true);
+    window.msalLogin(
+      null,
+      handleAuth,
+      (msg) => { setLoading(false); setError(msg); }
+    );
+  };
+
+  const googleSignin = () => {
+    setError('');
+    setLoading(true);
+    window.googleLogin(
+      handleAuth,
+      (msg) => { setLoading(false); setError(msg); }
+    );
+  };
+
+  return (
+    <div className="auth-shell" style={{ color: palette.ink, fontFamily: "'Inter Tight', system-ui, sans-serif" }}>
+      <Backdrop palette={palette} blur={blur} grain={grain} />
+
+      <div className="auth-grid">
+        <div className="auth-hero">
+          <div className="brand auth-brand">
+            <MaiMark palette={palette} size={44} />
+            <Wordmark palette={palette} displayFont={displayFont} newsFont={newsFont} size={38} />
+          </div>
+          <h1 className="auth-headline" style={{ fontFamily: FONTS[displayFont], color: palette.ink }}>
+            Tech news,<br/><em>made yours.</em>
+          </h1>
+          <div className="auth-bullets" style={{ color: palette.muted }}>
+            <p className="auth-line">Tech moves too fast. MAI personalizes the news to your preferences and sends it your way.</p>
+            <p className="auth-line">Want to know more? Chat with me — I'll dig deeper, with sources.</p>
+          </div>
+        </div>
+
+        <div className="auth-card" style={{ background: palette.cardBg, borderColor: 'rgba(0,0,0,0.08)' }}>
+          <div className="auth-tabs">
+            <button type="button" className={`auth-tab ${mode === 'signin' ? 'on' : ''}`}
+              onClick={() => { setMode('signin'); setError(''); }}
+              style={mode === 'signin'
+                ? { color: palette.ink, borderBottomColor: palette.ink }
+                : { color: palette.muted, borderBottomColor: 'transparent' }}>
+              Sign in
+            </button>
+            <button type="button" className={`auth-tab ${mode === 'signup' ? 'on' : ''}`}
+              onClick={() => { setMode('signup'); setError(''); }}
+              style={mode === 'signup'
+                ? { color: palette.ink, borderBottomColor: palette.ink }
+                : { color: palette.muted, borderBottomColor: 'transparent' }}>
+              Create account
+            </button>
+          </div>
+
+          <h2 className="auth-h" style={{ fontFamily: FONTS[displayFont], color: palette.ink }}>
+            {mode === 'signin' ? 'Welcome back.' : <>Get your first <span style={{ fontFamily: NEWS_FONTS[newsFont], fontStyle: 'italic', fontWeight: 600, color: palette.accent }}>briefing</span>.</>}
+          </h2>
+          <p className="auth-sub" style={{ color: palette.muted }}>
+            {mode === 'signin'
+              ? 'Use your Microsoft or Google account to continue.'
+              : 'A few quiet details. Then MAI shapes the news around you.'}
+          </p>
+
+          <button type="button" className="auth-sso" onClick={ssoSignin} disabled={loading}
+            style={{ color: palette.ink, borderColor: 'rgba(0,0,0,0.16)', background: 'rgba(255,253,247,0.6)' }}>
+            <svg width="18" height="18" viewBox="0 0 21 21" aria-hidden="true">
+              <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
+              <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
+              <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
+              <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+            </svg>
+            <span>Continue with Microsoft</span>
+          </button>
+
+          <button type="button" className="auth-sso" onClick={googleSignin} disabled={loading}
+            style={{ color: palette.ink, borderColor: 'rgba(0,0,0,0.16)', background: 'rgba(255,253,247,0.6)', marginTop: '10px' }}>
+            <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+              <path fill="none" d="M0 0h48v48H0z"/>
+            </svg>
+            <span>Continue with Google</span>
+          </button>
+
+          <div className="auth-divider" style={{ color: palette.muted }}>
+            <span className="auth-divider-line" />
+            <span>or</span>
+            <span className="auth-divider-line" />
+          </div>
+
+          <form onSubmit={submit} className="auth-form" noValidate>
+            {mode === 'signup' && (
+              <label className="auth-field">
+                <span style={{ color: palette.muted }}>Full name</span>
+                <input type="text" value={form.name} onChange={(e) => update('name', e.target.value)}
+                  placeholder="Eve Sandoval" autoComplete="name"
+                  style={{ color: palette.ink, borderColor: 'rgba(0,0,0,0.16)' }} />
+              </label>
+            )}
+
+            <label className="auth-field">
+              <span style={{ color: palette.muted }}>Corporate email</span>
+              <input type="email" value={form.email} onChange={(e) => update('email', e.target.value)}
+                placeholder={`you@${CORPORATE_DOMAIN}`} autoComplete="email"
+                style={{ color: palette.ink, borderColor: 'rgba(0,0,0,0.16)' }} />
+              <span className="auth-hint" style={{ color: palette.muted }}>Use your Microsoft account (outlook.com, hotmail.com, or work account).</span>
+            </label>
+
+            {mode === 'signup' && (
+              <>
+                <label className="auth-field">
+                  <span style={{ color: palette.muted }}>Department</span>
+                  <select value={form.department} onChange={(e) => update('department', e.target.value)}
+                    style={{ color: palette.ink, borderColor: 'rgba(0,0,0,0.16)' }}>
+                    <option value="">Choose your department…</option>
+                    {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </label>
+                <div className="auth-field">
+                  <span style={{ color: palette.muted }}>Region</span>
+                  <div className="auth-region-grid">
+                    {REGIONS_AUTH.map((r) => {
+                      const on = form.region === r.id;
+                      return (
+                        <button type="button" key={r.id} className={`auth-region ${on ? 'on' : ''}`}
+                          onClick={() => update('region', r.id)}
+                          style={on
+                            ? { background: palette.ink, color: palette.bg, borderColor: palette.ink }
+                            : { color: palette.ink, borderColor: 'rgba(0,0,0,0.14)', background: 'rgba(255,253,247,0.5)' }}>
+                          {r.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+
+            <p className="auth-hint" style={{ color: palette.muted, marginTop: '2px' }}>
+              Your password is entered securely on Microsoft's sign-in page.
+            </p>
+
+            {error && <div className="auth-error" style={{ color: palette.ink }}>{error}</div>}
+
+            <button type="submit" className="auth-submit" disabled={loading}
+              style={{ background: palette.ink, color: palette.bg }}>
+              {loading ? 'Just a moment…' : (mode === 'signin' ? 'Sign in with Microsoft →' : 'Create account →')}
+            </button>
+          </form>
+
+          <p className="auth-meta" style={{ color: palette.muted }}>
+            By continuing you agree to MAI's terms and Microsoft's internal data-handling policies. We never send breaking-news alerts you haven't asked for.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+// ---------- Share Modal ----------
+function ShareModal({ open, onClose, palette, messages, threadTitle, onToast }) {
+  if (!open) return null;
+  const getText = () => messages
+    .filter(m => m.content)
+    .map(m => (m.role === 'user' ? 'You' : 'MAI') + ':\n' + m.content)
+    .join('\n\n');
+
+  const handlePDF = () => { onClose(); setTimeout(() => window.print(), 100); };
+  const handleEmail = () => {
+    const subj = encodeURIComponent('MAI News Briefing — ' + (threadTitle || 'Conversation'));
+    const body = encodeURIComponent(getText().slice(0, 1800));
+    window.open('mailto:?subject=' + subj + '&body=' + body);
+    onClose();
+  };
+  const handleCopy = async () => {
+    try { await navigator.clipboard.writeText(getText()); onToast('Copied to clipboard.'); }
+    catch (_) { onToast('Could not copy.'); }
+    onClose();
+  };
+
+  return (
+    <div className="share-overlay" onClick={onClose}>
+      <div className="share-modal" onClick={(e) => e.stopPropagation()}
+        style={{ background: palette.cardBg, color: palette.ink }}>
+        <div className="share-title">Share this briefing</div>
+
+        <button className="share-opt" onClick={handlePDF} style={{ color: palette.ink }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h3"/>
+          </svg>
+          <div className="share-opt-text">
+            <span className="share-opt-label">Download as PDF</span>
+            <span className="share-opt-hint" style={{ color: palette.muted }}>Print-friendly layout via browser</span>
+          </div>
+        </button>
+
+        <button className="share-opt" onClick={handleEmail} style={{ color: palette.ink }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/>
+          </svg>
+          <div className="share-opt-text">
+            <span className="share-opt-label">Send by email</span>
+            <span className="share-opt-hint" style={{ color: palette.muted }}>Opens your mail app</span>
+          </div>
+        </button>
+
+        <button className="share-opt" onClick={handleCopy} style={{ color: palette.ink }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          <div className="share-opt-text">
+            <span className="share-opt-label">Copy to clipboard</span>
+            <span className="share-opt-hint" style={{ color: palette.muted }}>Plain text</span>
+          </div>
+        </button>
+
+        <button className="share-cancel" onClick={onClose} style={{ color: palette.muted }}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [tw, setTweak] = useTweaks(TWEAKS_DEFAULTS);
+  const palette = PALETTES[tw.palette] || PALETTES.moss;
+  const [user, setUser] = useState(() => readSession());
+  const [authMode, setAuthMode] = useState('signin');
+  const [prefsOpen, setPrefsOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [prefs, setPrefs] = useState({
+    role: "engineer",
+    region: user?.region || "eu",
+    topics: ["ai_ml", "cloud", "cyber"],
+    depth: "deep",
+    delivery: ["daily"],
+    keywords: "",
+    tone: "calm",
+    energy: 35,
+  });
+
+  const [threads, setThreads] = useState([
+  { id: "t1", title: "Latest LLM benchmarks", time: "Now" },
+  { id: "t2", title: "Frontier releases this week", time: "Today" },
+  { id: "t3", title: "Open vs. closed models", time: "Yesterday" },
+  { id: "t4", title: "AI policy in the EU", time: "Mon" },
+  { id: "t5", title: "What I missed last week", time: "Apr 28" }]
+  );
+  const [activeId, setActiveId] = useState("t1");
+  const [messages, setMessages] = useState(tw.preloadDemo ? buildBenchmarkConvo() : []);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState("");
+  const scrollRef = useRef(null);
+
+  const isEmpty = messages.length === 0;
+
+  useEffect(() => {
+    const el = scrollRef.current;if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [messages]);
+
+  function buildBenchmarkConvo() {
+    return [
+    { id: 1, role: "user", content: "What are the latest LLM benchmarks?" },
+    {
+      id: 2,
+      role: "ai",
+      content:
+      `a few things are stirring in benchmark-land this week — none of it dramatic, but the picture is shifting.
+
+the headline is that no single model is sweeping anymore. GPT-5.1 leads on reasoning and code; Claude 4.5 still owns long-context recall and tool-use; Gemini 3 is closer than it's been in months. on the open side, Llama 4.1 just cracked the Arena top five for the first time.
+
+the more interesting story underneath: MMLU-Pro is saturating — five models cluster within two points — and researchers are openly arguing it's time for harder evals. SWE-bench Verified jumped after a new tool-use protocol, which says more about plumbing than raw intelligence.`,
+      cards: BENCHMARK_CARDS
+    }];
+
+  }
+
+  const send = async (overrideText) => {
+    const text = (overrideText ?? input).trim();
+    if (!text || busy) return;
+    setInput("");
+    const userMsg = { id: Date.now(), role: "user", content: text };
+    const thinkingId = Date.now() + 1;
+    setMessages((m) => [...m, userMsg, { id: thinkingId, role: "ai", thinking: true }]);
+    setBusy(true);
+
+    if (messages.length === 0) {
+      setThreads((ts) => {
+        const newTitle = text.length > 40 ? text.slice(0, 40) + "…" : text;
+        return ts.map((t) => t.id === activeId ? { ...t, title: newTitle, time: "Just now" } : t);
+      });
+    }
+
+    try {
+      const reply = await window.claude.complete({
+        messages: [
+        { role: "user", content:
+          `You are MAI news — a calm, editorial AI-news companion. You ONLY discuss artificial intelligence: models, benchmarks, research papers, releases, policy, infrastructure, the people and companies behind it. If asked about anything outside AI, gently redirect.
+
+Voice: thoughtful, literary, unhurried. Lowercase is fine. No emoji. No bullet lists unless explicitly asked. Keep replies to 2–4 short paragraphs.
+
+Name the story plainly, give context, surface multiple perspectives where relevant, end with one open question or angle worth exploring next. If you don't know recent specifics, say so honestly.
+
+Begin without preamble.
+
+User: ${text}` }]
+
+      });
+      setMessages((m) => m.map((msg) => msg.id === thinkingId ? { id: thinkingId, role: "ai", content: reply } : msg));
+    } catch (err) {
+      setMessages((m) => m.map((msg) => msg.id === thinkingId ? { id: thinkingId, role: "ai", content: "i'm having trouble reaching my thoughts right now. try again in a moment." } : msg));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startNew = () => {
+    const id = "t" + Date.now();
+    setThreads((ts) => [{ id, title: "New conversation", time: "Now" }, ...ts]);
+    setActiveId(id);
+    setMessages([]);
+  };
+
+  const deleteThread = (id) => {
+    setThreads((ts) => {
+      const remaining = ts.filter((t) => t.id !== id);
+      if (id === activeId && remaining.length > 0) {
+        setActiveId(remaining[0].id);
+        setMessages([]);
+      }
+      return remaining;
+    });
+  };
+
+  const pinThread = (id) => {
+    setThreads((ts) => {
+      const updated = ts.map((t) => t.id === id ? { ...t, pinned: !t.pinned } : t);
+      return [...updated.filter((t) => t.pinned), ...updated.filter((t) => !t.pinned)];
+    });
+  };
+
+  const handleAction = (kind, card) => {
+    if (kind === "read") setToast(`Opening ${card.source}…`);
+    if (kind === "more") setToast(`Pulling threads on "${card.tag}"…`);
+  };
+  const handleActionChip = (a) => {
+    const map = {
+      report: "Drafting a one-page report from these stories…",
+      compare: "Building a side-by-side comparison…",
+      explore: "Surfacing related papers and releases…",
+      save: "Saved to your library."
+    };
+    setToast(map[a.id] || a.label);
+  };
+
+  if (!user) {
+    return (
+      <>
+        <AuthGate
+          palette={palette}
+          displayFont={tw.displayFont}
+          newsFont={tw.newsFont}
+          blur={tw.blur}
+          grain={tw.grain}
+          mode={authMode}
+          setMode={setAuthMode}
+          onAuthed={(u) => setUser(u)}
+        />
+        <TweaksPanel title="Tweaks">
+          <TweakSection title="Mood">
+            <TweakSelect label="Palette" value={tw.palette} onChange={(v) => setTweak("palette", v)}
+              options={Object.entries(PALETTES).map(([k, v]) => ({ value: k, label: v.name }))} />
+            <TweakSelect label="Display font" value={tw.displayFont} onChange={(v) => setTweak("displayFont", v)}
+              options={Object.keys(FONTS).map((k) => ({ value: k, label: k }))} />
+            <TweakSelect label="'news' font" value={tw.newsFont} onChange={(v) => setTweak("newsFont", v)}
+              options={Object.keys(NEWS_FONTS).map((k) => ({ value: k, label: k }))} />
+          </TweakSection>
+          <TweakSection title="Atmosphere">
+            <TweakSlider label="Grain" min={0} max={0.5} step={0.01} value={tw.grain} onChange={(v) => setTweak("grain", v)} />
+            <TweakSlider label="Blur" min={20} max={140} step={1} value={tw.blur} onChange={(v) => setTweak("blur", v)} />
+          </TweakSection>
+        </TweaksPanel>
+      </>
+    );
+  }
+
+  return (
+    <div className="shell" style={{ color: palette.ink, fontFamily: "'Inter Tight', system-ui, sans-serif" }}>
+      <Backdrop palette={palette} blur={tw.blur} grain={tw.grain} />
+
+      <Sidebar
+        palette={palette}
+        displayFont={tw.displayFont}
+        newsFont={tw.newsFont}
+        threads={threads}
+        activeId={activeId}
+        onSelect={(id) => {setActiveId(id);if (id !== "t1") setMessages([]);else setMessages(buildBenchmarkConvo());}}
+        onNew={startNew}
+        onDelete={deleteThread}
+        onPin={pinThread}
+        user={user}
+        onLogout={() => { writeSession(null); setUser(null); }} />
+      
+
+      <main className="main">
+        <header className="topbar">
+          <div className="crumb" style={{ color: palette.muted }}>
+            <span className="crumb-tag" style={{ borderColor: "rgba(0,0,0,0.1)" }}>AI · Benchmarks</span>
+            <span className="crumb-title" style={{ color: palette.ink }}>{threads.find((t) => t.id === activeId)?.title || "Conversation"}</span>
+          </div>
+          <div className="topbar-right" style={{ color: palette.muted }}>
+            <button className="ghost-btn" onClick={() => setPrefsOpen(true)}>Preferences</button>
+            <button className="ghost-btn" onClick={() => setShareOpen(true)}>Share</button>
+          </div>
+        </header>
+
+        <section className="canvas" ref={scrollRef}>
+          {isEmpty ?
+          <div className="hero">
+              <div className="hero-eyebrow" style={{ color: palette.muted }}>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {user?.name?.split(' ')[0] || 'there'}.</div>
+              <h1 className="hero-title" style={{ fontFamily: FONTS[tw.displayFont], color: palette.ink }}>
+                Explore AI <span className="hero-news" style={{ fontFamily: NEWS_FONTS[tw.newsFont], color: palette.accent }}>news</span>
+              </h1>
+              <p className="hero-sub" style={{ color: palette.muted }}>{tw.tagline}</p>
+
+              {tw.showSuggestions &&
+            <div className="chips">
+                  {getSuggestions(prefs).map((s) =>
+              <button
+                key={s.label}
+                className="chip"
+                onClick={() => send(s.prompt)}
+                style={{ color: palette.ink, borderColor: "rgba(0,0,0,0.12)", background: "rgba(255,253,247,0.55)" }}>
+                      {s.label}
+                    </button>
+              )}
+                </div>
+            }
+            </div> :
+
+          <div className="thread">
+              {messages.map((m) =>
+            <Message
+              key={m.id}
+              msg={m}
+              palette={palette}
+              displayFont={tw.displayFont}
+              compact={tw.compactMessages}
+              onAction={handleAction}
+              onActionChip={handleActionChip}
+              onFollowup={(f) => send(f)} />
+
+            )}
+            </div>
+          }
+        </section>
+
+        <div className="composer-wrap">
+          <Composer value={input} setValue={setInput} onSend={() => send()} palette={palette} disabled={busy} />
+        </div>
+      </main>
+
+      <Toast text={toast} onDone={() => setToast("")} />
+
+      <PrefsDeck
+        open={prefsOpen}
+        onClose={() => setPrefsOpen(false)}
+        palette={palette}
+        displayFont={tw.displayFont}
+        newsFont={tw.newsFont}
+        prefs={prefs}
+        setPrefs={setPrefs}
+        user={user}
+        onSave={() => { setPrefsOpen(false); setToast("Preferences saved. I'll keep these in mind."); }}
+      />
+
+      <ShareModal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        palette={palette}
+        messages={messages}
+        threadTitle={threads.find((t) => t.id === activeId)?.title}
+        onToast={setToast}
+      />
+
+      <TweaksPanel title="Tweaks">
+        <TweakSection title="Mood">
+          <TweakSelect label="Palette" value={tw.palette} onChange={(v) => setTweak("palette", v)}
+          options={Object.entries(PALETTES).map(([k, v]) => ({ value: k, label: v.name }))} />
+          <TweakSelect label="Display font" value={tw.displayFont} onChange={(v) => setTweak("displayFont", v)}
+          options={Object.keys(FONTS).map((k) => ({ value: k, label: k }))} />
+          <TweakSelect label="'news' font" value={tw.newsFont} onChange={(v) => setTweak("newsFont", v)}
+          options={Object.keys(NEWS_FONTS).map((k) => ({ value: k, label: k }))} />
+        </TweakSection>
+        <TweakSection title="Atmosphere">
+          <TweakSlider label="Grain" min={0} max={0.5} step={0.01} value={tw.grain} onChange={(v) => setTweak("grain", v)} />
+          <TweakSlider label="Blur" min={20} max={140} step={1} value={tw.blur} onChange={(v) => setTweak("blur", v)} />
+        </TweakSection>
+        <TweakSection title="Layout">
+          <TweakToggle label="Show suggestions" value={tw.showSuggestions} onChange={(v) => setTweak("showSuggestions", v)} />
+          <TweakToggle label="Compact messages" value={tw.compactMessages} onChange={(v) => setTweak("compactMessages", v)} />
+          <TweakText label="Tagline" value={tw.tagline} onChange={(v) => setTweak("tagline", v)} />
+        </TweakSection>
+      </TweaksPanel>
+    </div>);
+
+}
+
+if (!(window.opener && (location.search.includes('code=') || location.search.includes('error=')))) {
+  ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+}
+</script>
+</body>
+</html>
