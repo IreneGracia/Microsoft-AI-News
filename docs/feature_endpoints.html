@@ -100,13 +100,6 @@
 
 <h1>Feature → Endpoint Map</h1>
 
-<blockquote>
-  Companion to <a href="./personas_and_features.html">personas_and_features.html</a> (the product) and <a href="./hosting.html">hosting.html</a> (where this all runs).<br>
-  Each feature (F1–F12) is mapped to the backend endpoints that implement it.<br>
-  All paths are prefixed with <code>/api/v1</code> (set in <a href="../backend/app/main.py">backend/app/main.py:126</a>).<br><br>
-  The tag taxonomy and source registry referenced below are owned by the data engineering layer: <a href="../sources.json">sources.json</a> is the canonical source of truth, and <a href="../data_engineering/tag_discovery_report.md">tag_discovery_report.md</a> describes how the topic clusters were derived.
-</blockquote>
-
 <hr>
 
 <h2>F1 — Employee registration</h2>
@@ -132,30 +125,13 @@
 <table>
   <thead><tr><th>Method</th><th>Path</th><th>What it does</th></tr></thead>
   <tbody>
-    <tr><td class="method m-get">GET</td><td class="path">/topics</td><td>Returns the <strong>topic</strong> dimension of the taxonomy (slug + label). Convenience subset of <code>/tags?dimension=topic</code>, kept for backwards compatibility and to drive the registration chip list. Seeded at startup (<a href="../backend/app/seed.py">seed.py</a>) from <a href="../sources.json">sources.json</a> <code>metadata.tags_taxonomy.topic</code>.</td></tr>
-    <tr><td class="method m-get">GET</td><td class="path">/tags</td><td>Returns the <strong>full multi-dimensional tag taxonomy</strong> keyed by dimension: <code>topic</code>, <code>business</code>, <code>regulation_policy</code>, <code>regional</code>, <code>role</code>, <code>seniority</code>. Source of truth: <a href="../sources.json">sources.json</a> <code>metadata.tags_taxonomy</code>. Cached for 24h.</td></tr>
-    <tr><td class="method m-get">GET</td><td class="path">/tags?dimension={d}</td><td>Returns a single dimension only — used by preference filter chips that show one category at a time.</td></tr>
+    <tr><td class="method m-get">GET</td><td class="path">/tags</td><td>Gives back the <strong>master list of every label the app uses</strong> — the categories users pick in their preferences and that articles get tagged with. The labels are split into six groups (<code>topic</code>, <code>business</code>, <code>regulation_policy</code>, <code>regional</code>, <code>role</code>, <code>seniority</code>), and this endpoint returns all six in one response. <strong>What you get back:</strong> one JSON object — each key is a group name, each group holds a list of labels, and every label has a <code>slug</code> (the short code the app stores, e.g. <code>artificial_intelligence_ml</code>) and a <code>label</code> (the readable name shown to the user, e.g. <code>Artificial Intelligence &amp; ML</code>). Shape: <code>{ "topic": [ {slug, label}, … ], "business": [ … ], … }</code>. <strong>What it's used for:</strong> (1) the sign-up and preferences screens call it to build the lists of options the user ticks — the topic chips, the role choices, the region chips, and so on (each screen just reads the group it needs out of the response); (2) it is the list of <em>allowed</em> values — when a user saves their preferences the server checks every choice against it, and the data team tags articles using the same slugs. The list almost never changes (it is loaded from <a href="../sources.json">sources.json</a> by <a href="../backend/app/seed.py">seed.py</a> when the app starts), so the response is cached for 24 hours.</td></tr>
     <tr><td class="method m-get">GET</td><td class="path">/sources</td><td>Lists available sources from the registry: <code>id</code>, <code>name</code>, <code>category</code>, <code>source_type</code>, <code>region</code>, <code>content_quality</code>. Powers the source-muting picker in preferences. Optional filters: <code>?region=</code>, <code>?category=</code>. Backed by <a href="../sources.json">sources.json</a>.</td></tr>
     <tr><td class="method m-get">GET</td><td class="path">/me/preferences</td><td>Returns the caller's current preferences: selected topics, business tags, regulation tags, regions, role, muted sources, frequency, delivery day/hour, tone, length, language.</td></tr>
     <tr><td class="method m-put">PUT</td><td class="path">/me/preferences</td><td>Replaces the caller's preferences. Validates every tag slug against the taxonomy and every source id against the registry; rejects unknown values.</td></tr>
   </tbody>
 </table>
-<p>Preferences body shape:</p>
-<pre>{
-  "topics": ["ai_ml", "cloud_infra"],
-  "business_tags": ["ma_funding"],
-  "regulation_tags": ["ai_regulation"],
-  "regions": ["europe"],
-  "role": "engineers",
-  "muted_sources": ["mit_technology_review"],
-  "frequency": "weekly",
-  "delivery_day": "monday",
-  "delivery_hour_local": 8,
-  "tone": "technical",
-  "length": "standard",
-  "language": "en"
-}</pre>
-<blockquote>The data engineering taxonomy's <code>seniority</code> dimension (<code>deep_dive</code> / <code>brief</code>) maps directly to the existing <code>length</code> field (<code>deep</code> / <code>short</code>). The two are kept as one field on the wire for UI continuity; the digest worker reads <code>length</code> and the summariser applies the corresponding seniority depth.</blockquote>
+<p>When the frontend renders the preferences screen it calls <strong>both</strong> <code>/tags</code> and <code>GET /me/preferences</code>: <code>/tags</code> draws every chip (all the options that exist), and <code>GET /me/preferences</code> says which of those chips should appear already ticked and what the frequency / tone / length controls should be set to. <code>/tags</code> is the list of choices; <code>GET /me/preferences</code> is the user's current answers; <code>PUT /me/preferences</code> saves new answers.</p>
 
 <h2>F3 — Email digest generation</h2>
 <p>The digest itself is produced by a background worker (not a public endpoint). The API only exposes <strong>reads</strong> of past digests for end users; writes happen via direct DB access from the digest worker (D1).</p>
@@ -167,29 +143,19 @@
     <tr><td class="method m-post">POST</td><td class="path">/internal/run-digest-worker</td><td><strong>Infrastructure-only.</strong> Triggers one run of the digest worker. Authenticated by <code>Authorization: Bearer &lt;WORKER_SHARED_SECRET&gt;</code> — not a user JWT. Returns 503 when the secret is unconfigured (closed-by-default). Hidden from OpenAPI (<code>include_in_schema=False</code>) so the frontend client doesn't surface it. Called by GitHub Actions cron; idempotent — the worker skips users who already have a digest for today.</td></tr>
   </tbody>
 </table>
-<blockquote>No public "generate digest now" endpoint at MVP — cadence is owned by the scheduler. A debug trigger can be added behind a feature flag if needed for demos.</blockquote>
 <blockquote>The worker logic lives in <a href="../backend/app/workers/digest_worker.py">backend/app/workers/digest_worker.py</a>; the webhook entry point is <a href="../backend/app/routers/internal.py">backend/app/routers/internal.py</a>.</blockquote>
 
-<h2>F4 — Configurable cadence <span class="badge">daily · weekdays · weekly</span></h2>
-<p>Cadence is a <strong>field on <code>/me/preferences</code></strong> (<code>frequency: daily | weekdays | weekly</code>). The scheduler reads it when picking who to deliver to on a given run. No dedicated endpoint.</p>
-<table>
-  <thead><tr><th>Method</th><th>Path</th><th>What it does</th></tr></thead>
-  <tbody>
-    <tr><td class="method m-put">PUT</td><td class="path">/me/preferences</td><td>Same endpoint as F2 — <code>frequency</code> is part of the preferences body.</td></tr>
-  </tbody>
-</table>
-
-<h2>F5 — Chatbot: grounded Q&amp;A with citations</h2>
+<h2>F4 — Chatbot: grounded Q&amp;A with citations</h2>
 <p>Conversational interface for news exploration. Each user message returns an LLM answer with article citations.</p>
 <table>
   <thead><tr><th>Method</th><th>Path</th><th>What it does</th></tr></thead>
   <tbody>
-    <tr><td class="method m-post">POST</td><td class="path">/me/sessions</td><td>Creates a new chat session for the caller. Returns the session id used in subsequent message calls.</td></tr>
-    <tr><td class="method m-get">GET</td><td class="path">/me/sessions</td><td>Lists the caller's chat sessions (cursor-paginated). Used for a sidebar of past conversations.</td></tr>
-    <tr><td class="method m-get">GET</td><td class="path">/me/sessions/{session_id}</td><td>Returns one session with its full message history.</td></tr>
+    <tr><td class="method m-post">POST</td><td class="path">/me/sessions</td><td>Starts a brand-new conversation — the "New chat" button. Creates an empty chat session owned by the caller and returns its <code>session_id</code>, which the frontend uses in every later message call.</td></tr>
+    <tr><td class="method m-get">GET</td><td class="path">/me/sessions</td><td>Lists all of the caller's existing conversations, cursor-paginated. Powers the sidebar of past chats the user switches between.</td></tr>
+    <tr><td class="method m-get">GET</td><td class="path">/me/sessions/{session_id}</td><td>Opens one specific conversation — returns the session together with its full message history, so clicking a chat in the sidebar loads the whole back-and-forth.</td></tr>
     <tr><td class="method m-post">POST</td><td class="path">/me/sessions/{session_id}/messages</td><td>Sends a user message; runs retrieval + LLM; returns the assistant reply <strong>with citations</strong> (each citation has <code>article_id</code>, title, source, url). This is the core grounded-answer endpoint.</td></tr>
-    <tr><td class="method m-get">GET</td><td class="path">/me/sessions/{session_id}/messages</td><td>Paginated message history for a session (when the embedded history in <code>GET /me/sessions/{id}</code> would be too large).</td></tr>
-    <tr><td class="method m-delete">DELETE</td><td class="path">/me/sessions/{session_id}</td><td>Deletes a chat session and its messages.</td></tr>
+    <tr><td class="method m-get">GET</td><td class="path">/me/sessions/{session_id}/messages</td><td>Fetches a conversation's history in <strong>pages</strong> (cursor-paginated, 50 turns at a time) instead of all at once. Same content as <code>GET /me/sessions/{id}</code>, but for very long chats where one big response would be slow — lets the frontend load older messages on demand as the user scrolls up.</td></tr>
+    <tr><td class="method m-delete">DELETE</td><td class="path">/me/sessions/{session_id}</td><td>Removes a conversation entirely — deletes the session and all its messages together (the user clearing a chat from their sidebar). Messages cascade-delete with the session, so nothing is left orphaned.</td></tr>
   </tbody>
 </table>
 <p>Citations resolve to articles via:</p>
@@ -201,36 +167,7 @@
   </tbody>
 </table>
 
-<h2>F6 — Chatbot: follow-ups &amp; "dig deeper"</h2>
-<p>Same endpoint as F5 — implemented via <strong>session memory</strong>. The server uses the session's prior messages as context for each new turn, so follow-ups like <em>"and what about the licensing implications?"</em> resolve against the previous turn.</p>
-<table>
-  <thead><tr><th>Method</th><th>Path</th><th>What it does</th></tr></thead>
-  <tbody>
-    <tr><td class="method m-post">POST</td><td class="path">/me/sessions/{session_id}/messages</td><td>Posting another message to the same session id continues the conversation; prior turns are included in the LLM prompt up to the context budget.</td></tr>
-  </tbody>
-</table>
-
-<h2>F7 — Chatbot: story comparison <span class="badge">"compare X vs Y"</span></h2>
-<p>Same endpoint as F5. The LLM is prompted with both articles' content (selected via retrieval) and asked to produce a side-by-side answer. No dedicated route — comparison is a query pattern, not a new resource.</p>
-<table>
-  <thead><tr><th>Method</th><th>Path</th><th>What it does</th></tr></thead>
-  <tbody>
-    <tr><td class="method m-post">POST</td><td class="path">/me/sessions/{session_id}/messages</td><td>A comparison query is just a user message whose retrieval step pulls multiple articles. Citations cover both sides.</td></tr>
-  </tbody>
-</table>
-
-<h2>F8 — Read the digest in-app</h2>
-<p>The email links into the web app; the app fetches the same digest content and renders it.</p>
-<table>
-  <thead><tr><th>Method</th><th>Path</th><th>What it does</th></tr></thead>
-  <tbody>
-    <tr><td class="method m-get">GET</td><td class="path">/me/digests/{digest_id}</td><td>Returns one digest: items (ranked), summaries, tones, and citations resolved to title/source/url. Default <code>?format=json</code> for the SPA.</td></tr>
-    <tr><td class="method m-get">GET</td><td class="path">/me/digests/{digest_id}?format=html</td><td>Same digest, rendered as a minimal HTML page. Used as a fallback / for the email-mirror view.</td></tr>
-  </tbody>
-</table>
-<blockquote>Cross-user access returns <strong>404</strong> (not 403) — we don't leak the existence of someone else's digest id (<a href="../backend/app/routers/digests.py">digests.py</a>).</blockquote>
-
-<h2>F9 — Preferences edit + unsubscribe</h2>
+<h2>F5 — Preferences edit + unsubscribe</h2>
 <p>Editing prefs uses the same <code>PUT /me/preferences</code> as F2. Unsubscribe = stop receiving digests, which today means deleting the account (the worker filters out users with no row). Logout is separate and doesn't affect delivery.</p>
 <table>
   <thead><tr><th>Method</th><th>Path</th><th>What it does</th></tr></thead>
@@ -241,7 +178,7 @@
   </tbody>
 </table>
 
-<h2>F10 — Feedback signal <span class="badge">thumbs up/down</span></h2>
+<h2>F6 — Feedback signal <span class="badge">thumbs up/down</span> <span class="badge">maybe — to consider implementation</span></h2>
 <p>One signal per <code>(user, digest, article)</code>. A second POST overwrites the previous signal (idempotent).</p>
 <table>
   <thead><tr><th>Method</th><th>Path</th><th>What it does</th></tr></thead>
@@ -249,12 +186,6 @@
     <tr><td class="method m-post">POST</td><td class="path">/me/digests/{digest_id}/feedback</td><td>Records a thumbs up/down for one article inside one digest. Body: <code>{ article_id, signal: "up" | "down" }</code>. Returns <code>204</code>. Validates that the article actually appeared in the digest so feedback can't be forged against unrelated articles.</td></tr>
   </tbody>
 </table>
-
-<h2>F11 — Language selection <span class="badge">post-MVP</span></h2>
-<p>No endpoint. When added, will become a field on <code>/me/preferences</code> and a parameter to the summarizer/chat prompts.</p>
-
-<h2>F12 — Saved articles / read-later <span class="badge">post-MVP</span></h2>
-<p>No endpoint. Sketch: <code>POST /me/saved</code> / <code>GET /me/saved</code> / <code>DELETE /me/saved/{article_id}</code>.</p>
 
 <hr>
 
@@ -273,32 +204,29 @@
 <pre>
 GET    /api/v1/auth/login                              F1   Start SSO
 GET    /api/v1/auth/callback                           F1   SSO callback — provisions user on first login
-POST   /api/v1/auth/logout                             F9   Clear session cookie
+POST   /api/v1/auth/logout                             F5   Clear session cookie
 POST   /api/v1/auth/dev-login                          F1   Dev shortcut (disabled in prod)
 
 GET    /api/v1/me                                      F1   Current user
-DELETE /api/v1/me                                      F9   Delete account
+DELETE /api/v1/me                                      F5   Delete account
 GET    /api/v1/me/preferences                          F2   Read preferences
-PUT    /api/v1/me/preferences                          F2/F4/F9  Update preferences (topics/tags/sources/freq/tone/length)
+PUT    /api/v1/me/preferences                          F2/F5  Update preferences (topics/tags/sources/freq/tone/length)
 
-GET    /api/v1/topics                                  F2   Topic dimension (legacy convenience)
-GET    /api/v1/tags                                    F2   Full multi-dimensional tag taxonomy
-GET    /api/v1/tags?dimension={d}                      F2   Single dimension (topic/business/regulation_policy/regional/role/seniority)
+GET    /api/v1/tags                                    F2   Full multi-dimensional tag taxonomy (drives all preference chips)
 GET    /api/v1/sources                                 F2   Source registry (id/name/category/region/source_type)
 
-GET    /api/v1/articles/{id}                           F5   Article detail (for citation expansion)
-GET    /api/v1/articles/{id}/source                    F5   Redirect to original publisher URL
+GET    /api/v1/articles/{id}                           F4   Article detail (for citation expansion)
+GET    /api/v1/articles/{id}/source                    F4   Redirect to original publisher URL
 
 GET    /api/v1/me/digests                              F3   List past digests
-GET    /api/v1/me/digests/{id}                         F8   Get one digest (?format=json|html)
-POST   /api/v1/me/digests/{id}/feedback                F10  Thumbs up/down on one item
+POST   /api/v1/me/digests/{id}/feedback                F6   Thumbs up/down on one item
 
-POST   /api/v1/me/sessions                             F5   Create chat session
-GET    /api/v1/me/sessions                             F5   List chat sessions
-GET    /api/v1/me/sessions/{id}                        F5   Get session + history
-DELETE /api/v1/me/sessions/{id}                        F5   Delete session
-GET    /api/v1/me/sessions/{id}/messages               F5   Paginated message history
-POST   /api/v1/me/sessions/{id}/messages               F5/F6/F7  Send message — LLM answer + citations
+POST   /api/v1/me/sessions                             F4   Create chat session
+GET    /api/v1/me/sessions                             F4   List chat sessions
+GET    /api/v1/me/sessions/{id}                        F4   Get session + history
+DELETE /api/v1/me/sessions/{id}                        F4   Delete session
+GET    /api/v1/me/sessions/{id}/messages               F4   Paginated message history
+POST   /api/v1/me/sessions/{id}/messages               F4   Send message — LLM answer + citations
 
 GET    /api/v1/health/live                             —    Liveness probe
 GET    /api/v1/health/ready                            —    Readiness probe
