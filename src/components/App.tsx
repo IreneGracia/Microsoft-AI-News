@@ -5,13 +5,15 @@ import Backdrop from '@/components/ui/Backdrop'
 import Sidebar from '@/components/layout/Sidebar'
 import Message from '@/components/chat/Message'
 import Composer from '@/components/chat/Composer'
+import BriefingPreview from '@/components/chat/BriefingPreview'
 import Toast from '@/components/ui/Toast'
+import ShareModal from '@/components/ui/ShareModal'
 import AuthGate from '@/components/auth/AuthGate'
 import PrefsDeck from '@/components/preferences/PrefsDeck'
 import { TweaksPanel, TweakSection, TweakSelect, TweakSlider, TweakToggle, TweakText } from '@/components/ui/TweaksPanel'
 import { PALETTES } from '@/constants/palettes'
 import { FONTS, NEWS_FONTS } from '@/constants/fonts'
-import { BENCHMARK_CARDS, SUGGESTIONS, TWEAKS_DEFAULTS } from '@/constants/data'
+import { BENCHMARK_CARDS, SUGGESTIONS, TOPIC_SUGGESTIONS, TWEAKS_DEFAULTS } from '@/constants/data'
 import { readSession, writeSession } from '@/lib/session'
 import { useTweaks } from '@/hooks/useTweaks'
 import type { ChatMessage, NewsCard, Prefs, Thread, User } from '@/types'
@@ -59,6 +61,7 @@ export default function App() {
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState('')
+  const [shareOpen, setShareOpen] = useState(false)
   const scrollRef = useRef<HTMLElement>(null)
 
   useEffect(() => { setUser(readSession()) }, [])
@@ -153,7 +156,15 @@ User: ${text}`,
         <AuthGate
           palette={palette} displayFont={tw.displayFont} newsFont={tw.newsFont}
           blur={tw.blur} grain={tw.grain} mode={authMode} setMode={setAuthMode}
-          onAuthed={(u) => setUser(u)}
+          onAuthed={(u) => {
+            setUser(u)
+            setPrefs((p) => ({
+              ...p,
+              region: u.region,
+              role: u.role || p.role,
+              delivery: u.delivery || p.delivery,
+            }))
+          }}
         />
         {tweakControls}
       </>
@@ -171,44 +182,41 @@ User: ${text}`,
         threads={threads} activeId={activeId}
         onSelect={(id) => { setActiveId(id); setMessages(id === 't1' ? buildBenchmarkConvo() : []) }}
         onNew={startNew} user={user}
+        onDelete={(id) => setThreads((ts) => ts.filter((t) => t.id !== id))}
+        onPin={(id) => setThreads((ts) => ts.map((t) => t.id === id ? { ...t, pinned: !t.pinned } : t))}
         onLogout={() => { writeSession(null); setUser(null) }}
       />
 
       <main className="main">
         <header className="topbar">
           <div className="crumb" style={{ color: palette.muted }}>
-            <span className="crumb-tag" style={{ borderColor: 'rgba(0,0,0,0.1)' }}>AI · Benchmarks</span>
             <span className="crumb-title" style={{ color: palette.ink }}>
               {threads.find((t) => t.id === activeId)?.title || 'Conversation'}
             </span>
           </div>
           <div className="topbar-right" style={{ color: palette.muted }}>
-            <button className="ghost-btn" onClick={() => setPrefsOpen(true)}>Preferences</button>
-            <button className="ghost-btn">Sources</button>
-            <button className="ghost-btn">Save</button>
-            <button className="ghost-btn">Share</button>
+            <button className="ghost-btn prefs-btn" onClick={() => setPrefsOpen(true)}
+              style={{ color: palette.ink, borderColor: 'rgba(0,0,0,0.18)', background: 'rgba(255,253,247,0.7)' }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+              Preferences
+            </button>
+            <div style={{ position: 'relative' }}>
+              <button className="ghost-btn" onClick={() => setShareOpen((v) => !v)}>Share</button>
+              <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} palette={palette}
+                title={threads.find((t) => t.id === activeId)?.title || 'Conversation'}
+                messages={messages} />
+            </div>
           </div>
         </header>
 
         <section className="canvas" ref={scrollRef}>
           {isEmpty ? (
-            <div className="hero">
-              <div className="hero-eyebrow" style={{ color: palette.muted }}>Good afternoon, {user.name.split(' ')[0]}.</div>
-              <h1 className="hero-title" style={{ fontFamily: FONTS[tw.displayFont], color: palette.ink }}>
-                Explore AI <span className="hero-news" style={{ fontFamily: NEWS_FONTS[tw.newsFont], color: palette.accent }}>news</span>
-              </h1>
-              <p className="hero-sub" style={{ color: palette.muted }}>{tw.tagline}</p>
-              {tw.showSuggestions && (
-                <div className="chips">
-                  {SUGGESTIONS.map((s) => (
-                    <button key={s.label} className="chip" onClick={() => send(s.prompt)}
-                      style={{ color: palette.ink, borderColor: 'rgba(0,0,0,0.12)', background: 'rgba(255,253,247,0.55)' }}>
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <BriefingPreview
+              palette={palette} displayFont={tw.displayFont} newsFont={tw.newsFont}
+              prefs={prefs} user={user} onAsk={(q) => send(q)}
+            />
           ) : (
             <div className="thread">
               {messages.map((m) => (

@@ -7,6 +7,35 @@ export const SUGGESTIONS = [
   { label: 'Open vs. closed models',          prompt: 'Where does the open-vs-closed model debate stand right now?' },
 ]
 
+export const TOPIC_SUGGESTIONS: Record<string, { label: string; prompt: string }> = {
+  ai_ml:     { label: 'Latest AI & ML news',              prompt: 'What are the latest AI and ML developments this week?' },
+  cyber:     { label: 'Cybersecurity threats',            prompt: 'What are the biggest cybersecurity stories right now?' },
+  cloud:     { label: 'Cloud & infrastructure updates',   prompt: 'What\'s new in cloud and infrastructure this week?' },
+  softdev:   { label: 'Software development trends',      prompt: 'What are the most important software development trends right now?' },
+  hardware:  { label: 'Chips & hardware news',            prompt: 'What\'s happening in chips and hardware this week?' },
+  privacy:   { label: 'Data & privacy updates',           prompt: 'What are the latest data privacy developments?' },
+  quantum:   { label: 'Quantum computing progress',       prompt: 'What\'s new in quantum computing?' },
+  robotics:  { label: 'Robotics & automation news',       prompt: 'What are the latest robotics and automation stories?' },
+  fintech:   { label: 'Fintech & payments news',          prompt: 'What\'s happening in fintech and payments this week?' },
+  health:    { label: 'Health & biotech updates',         prompt: 'What are the biggest health tech and biotech stories?' },
+  cleantech: { label: 'Clean tech & sustainability',      prompt: 'What\'s new in clean tech and sustainability?' },
+  space:     { label: 'Space & satellite updates',        prompt: 'What\'s the latest in space and satellite technology?' },
+  xr:        { label: 'Metaverse & XR news',              prompt: 'What\'s new in metaverse and XR this week?' },
+  ma:        { label: 'M&A & funding rounds',             prompt: 'What are the biggest M&A deals and funding rounds this week?' },
+  ipo:       { label: 'IPO & market news',                prompt: 'What\'s happening in tech IPOs and markets?' },
+  bigtech:   { label: 'Big Tech news',                    prompt: 'What are the biggest stories from FAANG and Microsoft this week?' },
+  startups:  { label: 'Startups & venture capital',       prompt: 'What are the most interesting startup and VC stories right now?' },
+  layoffs:   { label: 'Layoffs & hiring trends',          prompt: 'What\'s happening with tech layoffs and hiring?' },
+  earnings:  { label: 'Earnings & revenue updates',       prompt: 'What are the latest tech earnings and revenue results?' },
+  ai_reg:    { label: 'AI regulation news',               prompt: 'What\'s new in AI regulation and policy?' },
+  gdpr:      { label: 'Data protection updates',          prompt: 'What are the latest GDPR and data protection developments?' },
+  antitrust: { label: 'Antitrust & competition',          prompt: 'What\'s happening in tech antitrust and competition cases?' },
+  exports:   { label: 'Export controls & sanctions',      prompt: 'What are the latest export controls affecting tech?' },
+  digiinfra: { label: 'Digital infrastructure policy',   prompt: 'What\'s new in digital infrastructure policy?' },
+  cyberpol:  { label: 'Cybersecurity policy',            prompt: 'What\'s happening in cybersecurity policy and regulation?' },
+  platform:  { label: 'Platform regulation news',        prompt: 'What are the latest platform regulation developments?' },
+}
+
 export const BENCHMARK_CARDS: NewsCard[] = [
   {
     id: 'c1', source: 'Artificial Analysis', time: '2h ago', kind: 'Benchmark', tone: 'lead', tag: 'Reasoning',

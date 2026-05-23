@@ -9,6 +9,20 @@ export const DEPARTMENTS = [
   'Operations', 'HR / People', 'Other',
 ]
 
+export const SIGNUP_ROLES = [
+  { id: 'engineer', label: 'Engineer',          note: 'Technical depth — models, code, infra' },
+  { id: 'business', label: 'Business & Sales',  note: 'Markets, deals, what to tell customers' },
+  { id: 'legal',    label: 'Legal & Compliance',note: 'Regulation, antitrust, privacy law' },
+  { id: 'exec',     label: 'Executive',         note: 'Strategic, high-level signals' },
+  { id: 'research', label: 'Researcher',        note: 'Papers, benchmarks, deep technical reads' },
+]
+
+export const SIGNUP_DELIVERY = [
+  { id: 'daily',    label: 'Daily brief',         note: 'Every morning, ranked and deduplicated' },
+  { id: 'weekly',   label: 'Weekly newsletter',   note: 'One Sunday long-read of what mattered' },
+  { id: 'breaking', label: 'Breaking-news alerts',note: 'Only when your keywords show up' },
+]
+
 export const REGIONS_AUTH = [
   { id: 'na',    label: 'North America' },
   { id: 'eu',    label: 'Europe' },

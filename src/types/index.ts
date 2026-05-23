@@ -16,6 +16,10 @@ export interface User {
   email: string
   department: string
   region: string
+  role?: string
+  depth?: string
+  delivery?: string[]
+  topics?: string[]
   signedInAt: number
   sso?: boolean
   rememberMe?: boolean
@@ -25,6 +29,7 @@ export interface Thread {
   id: string
   title: string
   time: string
+  pinned?: boolean
 }
 
 export interface NewsCard {

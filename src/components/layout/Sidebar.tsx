@@ -13,11 +13,13 @@ interface Props {
   activeId: string
   onSelect: (id: string) => void
   onNew: () => void
+  onDelete: (id: string) => void
+  onPin: (id: string) => void
   user: User
   onLogout: () => void
 }
 
-export default function Sidebar({ palette, displayFont, newsFont, threads, activeId, onSelect, onNew, user, onLogout }: Props) {
+export default function Sidebar({ palette, displayFont, newsFont, threads, activeId, onSelect, onNew, onDelete, onPin, user, onLogout }: Props) {
   const regionLabel = (REGIONS_AUTH.find((r) => r.id === user.region) || {}).label
   const initial = (user.name || 'M').trim().charAt(0).toLowerCase()
 
@@ -38,16 +40,37 @@ export default function Sidebar({ palette, displayFont, newsFont, threads, activ
 
       <div className="side-section-label" style={{ color: palette.muted }}>Today&apos;s threads</div>
       <ul className="thread-list">
-        {threads.map((t) => (
-          <li key={t.id}>
+        {[...threads].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)).map((t) => (
+          <li key={t.id} className="thread-row">
             <button
               className={`thread-item ${t.id === activeId ? 'active' : ''}`}
               onClick={() => onSelect(t.id)}
               style={{ color: palette.ink }}
             >
+              {t.pinned && (
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style={{ color: palette.accent, flexShrink: 0 }}>
+                  <path d="M16 4a1 1 0 0 1 .707 1.707L14 8.414V13l2 4H8l2-4V8.414L7.293 5.707A1 1 0 0 1 8 4h8z"/>
+                </svg>
+              )}
               <span className="t-title">{t.title}</span>
               <span className="t-time" style={{ color: palette.muted }}>{t.time}</span>
             </button>
+            <div className="thread-actions">
+              <button className="thread-action-btn" title={t.pinned ? 'Unpin' : 'Pin'}
+                onClick={(e) => { e.stopPropagation(); onPin(t.id) }}
+                style={{ color: t.pinned ? palette.accent : palette.muted }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill={t.pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2v7l2 3H6l2-3V2"/><line x1="12" y1="12" x2="12" y2="22"/><line x1="8" y1="2" x2="16" y2="2"/>
+                </svg>
+              </button>
+              <button className="thread-action-btn" title="Delete"
+                onClick={(e) => { e.stopPropagation(); onDelete(t.id) }}
+                style={{ color: palette.muted }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>
+                </svg>
+              </button>
+            </div>
           </li>
         ))}
       </ul>
