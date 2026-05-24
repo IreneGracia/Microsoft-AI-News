@@ -1,30 +1,16 @@
-# Next.js
-/node_modules
-/.next/
-/out/
-/build
-/.pnp
-.pnp.js
-/coverage
-next-env.d.ts
-*.tsbuildinfo
-
-# env
+# ── Secrets & environment ──────────────────────────────────────────────────
 .env
-.env*.local
+.env.*
+!.env.example
 *.pem
+*.key
+*_credentials.json
+service_account*.json
 
-# misc
-.DS_Store
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Python
+# ── Python ─────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.so
-.env
 .venv
 env/
 venv/
@@ -32,3 +18,31 @@ venv/
 .mypy_cache/
 .pytest_cache/
 .ipynb_checkpoints
+dist/
+build/
+*.egg-info/
+
+# ── Data & state ───────────────────────────────────────────────────────────
+data/chroma_db/
+data/fetch_state.json
+data/fetch_state.json.tmp
+*.sqlite
+*.db
+
+# ── Node / Next.js ─────────────────────────────────────────────────────────
+node_modules/
+.next/
+out/
+build/
+.pnp
+.pnp.js
+coverage/
+next-env.d.ts
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── OS ─────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
