@@ -63,3 +63,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ── OS files ───────────────────────────────────────────────────────────────
+.DS_Store
+
+# ── Local databases ────────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
