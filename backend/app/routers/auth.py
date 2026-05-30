@@ -1,13 +1,21 @@
 """
 Auth endpoints — /api/v1/auth/*.
 
-  - /login    → start the Entra OAuth flow (302 to Microsoft).
+  - /login    → start the OAuth flow (302 to the identity provider).
   - /callback → exchange the code, provision the user, redirect to the
                 frontend with our JWT in the URL fragment.
   - /logout   → 204; bearer-token auth is stateless, so logout is the
                 frontend forgetting the token.
   - /dev-login → dev-only shortcut: mints a JWT for a fixed test user.
-                Lets us build the rest of the API without configuring Entra.
+                Lets us build the rest of the API without configuring
+                the IdP.
+
+The identity provider is Google OAuth (app/auth/google.py). Picked
+because the deployment subscription's IE tenant blocks student accounts
+from creating Entra App Registrations, AND personal Microsoft accounts
+can no longer create directory-less app registrations. The Entra
+variant (app/auth/entra.py) is left in the tree for the day a usable
+Entra tenant is available.
 """
 
 import secrets
@@ -16,7 +24,7 @@ from fastapi import APIRouter, Cookie, Depends, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
-from app.auth import entra
+from app.auth import google as oauth
 from app.auth.jwt import mint as mint_jwt
 from app.config import settings
 from app.deps import get_db
@@ -58,10 +66,10 @@ _DEV_USER = {
 @router.get("/login")
 def login() -> RedirectResponse:
     """Start the OAuth flow: stash state + PKCE verifier, 302 to Entra."""
-    state = entra.generate_state()
-    verifier, challenge = entra.generate_pkce_pair()
+    state = oauth.generate_state()
+    verifier, challenge = oauth.generate_pkce_pair()
 
-    authorize_url = entra.build_authorize_url(state=state, code_challenge=challenge)
+    authorize_url = oauth.build_authorize_url(state=state, code_challenge=challenge)
 
     response = RedirectResponse(url=authorize_url, status_code=302)
     response.set_cookie(_STATE_COOKIE, state, **_oauth_cookie_kwargs())
@@ -106,7 +114,7 @@ def callback(
         raise problem(status=400, title="State mismatch — possible CSRF")
 
     try:
-        identity = entra.exchange_code(code=code, code_verifier=oauth_verifier)
+        identity = oauth.exchange_code(code=code, code_verifier=oauth_verifier)
     except ValueError as e:
         raise problem(status=400, title="Token exchange failed", detail=str(e))
 

@@ -10,6 +10,7 @@ the tables on the metadata object).
 from app.models.chat import ChatSession, ChatTurn
 from app.models.content import Article, ArticleTag, Source, Tag
 from app.models.digest import Digest, DigestItem, Feedback
+from app.models.kv_state import KvState
 from app.models.user import Preferences, User
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     "Feedback",
     "ChatSession",
     "ChatTurn",
+    "KvState",
 ]

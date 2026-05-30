@@ -56,7 +56,9 @@ jobs:
       - name: Build & push image
         uses: docker/build-push-action@v6
         with:
-          context: ./backend
+          # Build context = repo root so the Dockerfile can COPY both
+          # backend/ and llm_engineering/ + sources.json into the image.
+          context: .
           file: ./backend/Dockerfile
           push: true
           tags: |
