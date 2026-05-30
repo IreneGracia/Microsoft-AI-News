@@ -86,6 +86,8 @@ var containerAppEnvName = '${projectName}-cae'
 var containerAppName = '${projectName}-api'
 // var staticWebAppName = '${projectName}-web'  // re-enable with the SWA resource below
 var logAnalyticsName = '${projectName}-logs'
+var emailServiceName = '${projectName}-email'
+var communicationServiceName = '${projectName}-comms'
 
 // ─── Log Analytics (Container Apps needs a workspace) ────────────────
 
@@ -217,24 +219,22 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
       secrets: empty(registryServer) ? [
         { name: 'database-url', value: 'postgresql+psycopg://${postgresAdminUser}:${postgresAdminPassword}@${postgres.properties.fullyQualifiedDomainName}:5432/mai_news?sslmode=require' }
         { name: 'jwt-secret', value: 'replace-me' }
-        { name: 'entra-tenant-id', value: 'replace-me' }
-        { name: 'entra-client-id', value: 'replace-me' }
-        { name: 'entra-client-secret', value: 'replace-me' }
+        { name: 'google-client-id', value: 'replace-me' }
+        { name: 'google-client-secret', value: 'replace-me' }
         { name: 'openai-api-key', value: 'replace-me' }
         { name: 'anthropic-api-key', value: 'replace-me' }
-        { name: 'resend-api-key', value: 'replace-me' }
-        { name: 'resend-from', value: 'replace-me' }
+        { name: 'acs-connection-string', value: communicationService.listKeys().primaryConnectionString }
+        { name: 'acs-sender-address', value: 'DoNotReply@${azureManagedDomain.properties.fromSenderDomain}' }
         { name: 'worker-shared-secret', value: 'replace-me' }
       ] : [
         { name: 'database-url', value: 'postgresql+psycopg://${postgresAdminUser}:${postgresAdminPassword}@${postgres.properties.fullyQualifiedDomainName}:5432/mai_news?sslmode=require' }
         { name: 'jwt-secret', value: 'replace-me' }
-        { name: 'entra-tenant-id', value: 'replace-me' }
-        { name: 'entra-client-id', value: 'replace-me' }
-        { name: 'entra-client-secret', value: 'replace-me' }
+        { name: 'google-client-id', value: 'replace-me' }
+        { name: 'google-client-secret', value: 'replace-me' }
         { name: 'openai-api-key', value: 'replace-me' }
         { name: 'anthropic-api-key', value: 'replace-me' }
-        { name: 'resend-api-key', value: 'replace-me' }
-        { name: 'resend-from', value: 'replace-me' }
+        { name: 'acs-connection-string', value: communicationService.listKeys().primaryConnectionString }
+        { name: 'acs-sender-address', value: 'DoNotReply@${azureManagedDomain.properties.fromSenderDomain}' }
         { name: 'worker-shared-secret', value: 'replace-me' }
         { name: 'registry-password', value: registryPassword }
       ]
@@ -269,19 +269,19 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'JWT_ISSUER', value: 'tech-intel-news' }
             { name: 'JWT_AUDIENCE', value: 'tech-intel-news-api' }
             { name: 'JWT_TTL_MINUTES', value: '30' }
-            { name: 'ENTRA_TENANT_ID', secretRef: 'entra-tenant-id' }
-            { name: 'ENTRA_CLIENT_ID', secretRef: 'entra-client-id' }
-            { name: 'ENTRA_CLIENT_SECRET', secretRef: 'entra-client-secret' }
+            { name: 'GOOGLE_CLIENT_ID', secretRef: 'google-client-id' }
+            { name: 'GOOGLE_CLIENT_SECRET', secretRef: 'google-client-secret' }
             // Deterministic FQDN for the Container App = <appname>.<env-default-domain>.
             // Computing it here means the redirect URI is correct from the
             // first deploy without a second pass. Don't forget to ALSO add
-            // this exact URL to the Entra App Registration's allowed
-            // redirects (Entra portal → App → Authentication).
-            { name: 'ENTRA_REDIRECT_URI', value: 'https://${containerAppName}.${containerAppEnv.properties.defaultDomain}/api/v1/auth/callback' }
+            // this exact URL to the Google OAuth client's "Authorized
+            // redirect URIs" list (Google Cloud Console → Credentials →
+            // OAuth 2.0 Client IDs → Web client → Edit).
+            { name: 'OAUTH_REDIRECT_URI', value: 'https://${containerAppName}.${containerAppEnv.properties.defaultDomain}/api/v1/auth/callback' }
             { name: 'OPENAI_API_KEY', secretRef: 'openai-api-key' }
             { name: 'ANTHROPIC_API_KEY', secretRef: 'anthropic-api-key' }
-            { name: 'RESEND_API_KEY', secretRef: 'resend-api-key' }
-            { name: 'RESEND_FROM', secretRef: 'resend-from' }
+            { name: 'ACS_CONNECTION_STRING', secretRef: 'acs-connection-string' }
+            { name: 'ACS_SENDER_ADDRESS', secretRef: 'acs-sender-address' }
             { name: 'WORKER_SHARED_SECRET', secretRef: 'worker-shared-secret' }
             { name: 'FRONTEND_URL', value: frontendUrl }
             { name: 'ALLOWED_ORIGINS', value: frontendUrl }
@@ -342,6 +342,52 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
     postgresExtensions
     postgresAllowAzure
   ]
+}
+
+// ─── Azure Communication Services (transactional email) ─────────────
+//
+// Three resources work together:
+//   - Email Communication Service: namespace for email domains
+//   - Azure Managed Domain: free `<random>.azurecomm.net` sender, no DNS
+//     verification required (swap to a custom domain later for branded
+//     mail). The `DoNotReply@<domain>` username is fixed for managed
+//     domains.
+//   - Communication Service: the connection-string-bearing resource that
+//     the SDK actually talks to. Linked to the email domain so the
+//     sender address resolves.
+//
+// All three are `location: 'global'` (the ACS control plane is global);
+// `dataLocation: 'Europe'` keeps the message data + customer info in EU
+// regions. This sidesteps the subscription's region policy because
+// `global` is always allowed.
+
+resource emailService 'Microsoft.Communication/emailServices@2023-04-01' = {
+  name: emailServiceName
+  location: 'global'
+  properties: {
+    dataLocation: 'Europe'
+  }
+}
+
+resource azureManagedDomain 'Microsoft.Communication/emailServices/domains@2023-04-01' = {
+  parent: emailService
+  name: 'AzureManagedDomain'
+  location: 'global'
+  properties: {
+    domainManagement: 'AzureManaged'
+    userEngagementTracking: 'Disabled'
+  }
+}
+
+resource communicationService 'Microsoft.Communication/communicationServices@2023-04-01' = {
+  name: communicationServiceName
+  location: 'global'
+  properties: {
+    dataLocation: 'Europe'
+    linkedDomains: [
+      azureManagedDomain.id
+    ]
+  }
 }
 
 // ─── Static Web App (frontend) ───────────────────────────────────────

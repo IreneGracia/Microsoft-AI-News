@@ -36,9 +36,11 @@ httpx==0.27.2
 # Used by the digest worker (summarization) and chat service (RAG).
 openai==1.54.4
 
-# Transactional email via Resend (docs/local_stack.md §4 C11).
-# Used by the digest worker to send digests + magic links / verification.
-resend==2.4.0
+# Transactional email via Azure Communication Services (matches the rest
+# of the deploy stack on Azure). Used by the digest worker to send
+# digests + magic links / verification. Switched off Resend so everything
+# is under one Azure bill and one Bicep file.
+azure-communication-email==1.0.0
 
 # ──────────────────────────────────────────────────────────────────────────
 # LLM pipeline deps — pulled in transitively when the digest worker imports
