@@ -13,10 +13,10 @@ import PrefsDeck from '@/components/preferences/PrefsDeck'
 import { TweaksPanel, TweakSection, TweakSelect, TweakSlider, TweakToggle, TweakText } from '@/components/ui/TweaksPanel'
 import { PALETTES } from '@/constants/palettes'
 import { FONTS, NEWS_FONTS } from '@/constants/fonts'
-import { BENCHMARK_CARDS, SUGGESTIONS, TOPIC_SUGGESTIONS, TWEAKS_DEFAULTS } from '@/constants/data'
+import { BENCHMARK_CARDS, NEWS_BY_TOPIC, SUGGESTIONS, TOPIC_SUGGESTIONS, TWEAKS_DEFAULTS } from '@/constants/data'
 import { readSession, writeSession } from '@/lib/session'
 import { useTweaks } from '@/hooks/useTweaks'
-import type { ChatMessage, NewsCard, Prefs, Thread, User } from '@/types'
+import type { ChatMessage, NewsCard, NewsFolder, Prefs, User } from '@/types'
 
 declare global {
   interface Window {
@@ -49,14 +49,74 @@ export default function App() {
     role: 'engineer', region: 'eu', topics: ['ai_ml', 'cloud', 'cyber'],
     depth: 'deep', delivery: ['daily'], keywords: '', tone: 'calm', energy: 35,
   })
-  const [threads, setThreads] = useState<Thread[]>([
-    { id: 't1', title: 'Latest LLM benchmarks',       time: 'Now' },
-    { id: 't2', title: 'Frontier releases this week',  time: 'Today' },
-    { id: 't3', title: 'Open vs. closed models',       time: 'Yesterday' },
-    { id: 't4', title: 'AI policy in the EU',          time: 'Mon' },
-    { id: 't5', title: 'What I missed last week',      time: 'Apr 28' },
+  const [folders, setFolders] = useState<NewsFolder[]>([
+    { id: 'f1', name: 'AI & Machine Learning', topics: ['ai_ml', 'hardware'], frequency: 'daily', threads: [
+      { id: 'th1', title: 'Latest LLM benchmarks', time: 'Now' },
+    ]},
+    { id: 'f2', name: 'Cybersecurity', topics: ['cyber', 'privacy'], frequency: 'daily', threads: [] },
+    { id: 'f3', name: 'Business & Markets', topics: ['ma', 'bigtech'], frequency: 'weekly', threads: [] },
   ])
-  const [activeId, setActiveId] = useState('t1')
+  const [activeFolderId, setActiveFolderId] = useState('f1')
+  const [activeThreadId, setActiveThreadId] = useState('th1')
+
+  const buildFolderBriefing = (folder: NewsFolder): ChatMessage[] => {
+    const now = new Date()
+    const freqPrefix = { daily: 'DAILY BRIEF', weekly: 'WEEKLY DIGEST', breaking: 'BREAKING NEWS' }[folder.frequency] ?? 'DAILY BRIEF'
+    const dayName = now.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()
+    const dateStr = now.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()
+    const header = `${freqPrefix} · ${dayName}, ${dateStr}`
+
+    const hour = now.getHours()
+    const timeGreeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
+    const firstName = user?.name?.split(' ')[0] || 'there'
+    const greeting = `${timeGreeting}, ${firstName}.`
+
+    const cards = folder.topics.flatMap((t) => NEWS_BY_TOPIC[t] ?? []).slice(0, 4)
+    const followups = folder.topics
+      .map((t) => TOPIC_SUGGESTIONS[t]?.prompt)
+      .filter(Boolean)
+      .slice(0, 4) as string[]
+
+    return [{
+      id: Date.now(),
+      role: 'ai',
+      cards: cards.length > 0 ? cards : undefined,
+      briefing: {
+        header,
+        greeting,
+        subtitle: `Here's what's moving in your topics today. Click any story to go deeper.`,
+        followups,
+      },
+    }]
+  }
+
+  const addThread = (folderId: string) => {
+    const id = 'th' + Date.now()
+    const folder = folders.find((f) => f.id === folderId)
+    const briefing = folder ? buildFolderBriefing(folder) : []
+    const firstTitle = folder?.topics[0]
+      ? (briefing[0]?.cards?.[0]?.title?.slice(0, 40) ?? 'New conversation')
+      : 'New conversation'
+    setFolders((fs) => fs.map((f) => f.id === folderId
+      ? { ...f, threads: [{ id, title: firstTitle, time: 'Now' }, ...f.threads] }
+      : f
+    ))
+    setActiveFolderId(folderId)
+    setActiveThreadId(id)
+    setMessages(briefing)
+  }
+
+  const deleteThread = (folderId: string, threadId: string) =>
+    setFolders((fs) => fs.map((f) => f.id === folderId
+      ? { ...f, threads: f.threads.filter((t) => t.id !== threadId) }
+      : f
+    ))
+
+  const pinThread = (folderId: string, threadId: string) =>
+    setFolders((fs) => fs.map((f) => f.id === folderId
+      ? { ...f, threads: f.threads.map((t) => t.id === threadId ? { ...t, pinned: !t.pinned } : t) }
+      : f
+    ))
   const [messages, setMessages] = useState<ChatMessage[]>(() => tw.preloadDemo ? buildBenchmarkConvo() : [])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
@@ -81,12 +141,6 @@ export default function App() {
     setMessages((m) => [...m, userMsg, { id: thinkingId, role: 'ai', thinking: true }])
     setBusy(true)
 
-    if (messages.length === 0) {
-      setThreads((ts) => {
-        const newTitle = text.length > 40 ? text.slice(0, 40) + '…' : text
-        return ts.map((t) => t.id === activeId ? { ...t, title: newTitle, time: 'Just now' } : t)
-      })
-    }
 
     try {
       const reply = await window.claude?.complete({
@@ -107,12 +161,7 @@ User: ${text}`,
     }
   }
 
-  const startNew = () => {
-    const id = 't' + Date.now()
-    setThreads((ts) => [{ id, title: 'New conversation', time: 'Now' }, ...ts])
-    setActiveId(id)
-    setMessages([])
-  }
+  const openFolders = () => setPrefsOpen(true)
 
   const handleAction = (kind: string, card: NewsCard) => {
     if (kind === 'read') setToast(`Opening ${card.source}…`)
@@ -179,11 +228,14 @@ User: ${text}`,
 
       <Sidebar
         palette={palette} displayFont={tw.displayFont} newsFont={tw.newsFont}
-        threads={threads} activeId={activeId}
-        onSelect={(id) => { setActiveId(id); setMessages(id === 't1' ? buildBenchmarkConvo() : []) }}
-        onNew={startNew} user={user}
-        onDelete={(id) => setThreads((ts) => ts.filter((t) => t.id !== id))}
-        onPin={(id) => setThreads((ts) => ts.map((t) => t.id === id ? { ...t, pinned: !t.pinned } : t))}
+        folders={folders} activeFolderId={activeFolderId} activeThreadId={activeThreadId}
+        onSelectThread={(folderId, threadId) => { setActiveFolderId(folderId); setActiveThreadId(threadId); setMessages([]) }}
+        onNewThread={addThread}
+        onDeleteThread={deleteThread}
+        onPinThread={pinThread}
+        onOpenFolders={openFolders}
+        onDeleteFolder={(id) => setFolders((fs) => fs.filter((f) => f.id !== id))}
+        user={user}
         onLogout={() => { writeSession(null); setUser(null) }}
       />
 
@@ -191,7 +243,7 @@ User: ${text}`,
         <header className="topbar">
           <div className="crumb" style={{ color: palette.muted }}>
             <span className="crumb-title" style={{ color: palette.ink }}>
-              {threads.find((t) => t.id === activeId)?.title || 'Conversation'}
+              {folders.find((f) => f.id === activeFolderId)?.name || 'Folder'}
             </span>
           </div>
           <div className="topbar-right" style={{ color: palette.muted }}>
@@ -205,7 +257,7 @@ User: ${text}`,
             <div style={{ position: 'relative' }}>
               <button className="ghost-btn" onClick={() => setShareOpen((v) => !v)}>Share</button>
               <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} palette={palette}
-                title={threads.find((t) => t.id === activeId)?.title || 'Conversation'}
+                title={folders.find((f) => f.id === activeFolderId)?.name || 'Folder'}
                 messages={messages} />
             </div>
           </div>
@@ -235,9 +287,15 @@ User: ${text}`,
 
       <Toast text={toast} onDone={() => setToast('')} />
 
-      <PrefsDeck open={prefsOpen} onClose={() => setPrefsOpen(false)} palette={palette}
-        displayFont={tw.displayFont} newsFont={tw.newsFont} prefs={prefs} setPrefs={setPrefs}
-        user={user} onSave={() => { setPrefsOpen(false); setToast('Preferences saved. I\'ll keep these in mind.') }} />
+      <PrefsDeck
+        open={prefsOpen}
+        onClose={() => setPrefsOpen(false)}
+        palette={palette} displayFont={tw.displayFont} newsFont={tw.newsFont}
+        prefs={prefs} setPrefs={setPrefs}
+        user={user}
+        onCreateFolder={(f) => { setFolders((fs) => [...fs, f]); setPrefsOpen(false); setToast(`Folder "${f.name}" creado.`) }}
+        onSave={() => { setPrefsOpen(false); setToast('Preferences saved.') }}
+      />
 
       {tweakControls}
     </div>

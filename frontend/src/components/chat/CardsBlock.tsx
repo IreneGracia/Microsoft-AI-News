@@ -11,9 +11,11 @@ interface Props {
   onAction: (kind: string, card: NewsCardType) => void
   onActionChip: (a: { id: string; label: string; icon: string }) => void
   onFollowup: (f: string) => void
+  followups?: string[]
 }
 
-export default function CardsBlock({ cards, palette, onAction, onActionChip, onFollowup }: Props) {
+export default function CardsBlock({ cards, palette, onAction, onActionChip, onFollowup, followups }: Props) {
+  const suggestions = followups && followups.length > 0 ? followups : FOLLOWUPS
   return (
     <div className="cards-block">
       <div className="cards-grid">
@@ -30,7 +32,7 @@ export default function CardsBlock({ cards, palette, onAction, onActionChip, onF
       </div>
       <div className="followups">
         <div className="followups-label" style={{ color: palette.muted }}>Or ask</div>
-        {FOLLOWUPS.map((f) => (
+        {suggestions.map((f) => (
           <button key={f} className="followup" onClick={() => onFollowup(f)}
             style={{ color: palette.ink, borderColor: 'rgba(0,0,0,0.08)' }}>
             <span>{f}</span>

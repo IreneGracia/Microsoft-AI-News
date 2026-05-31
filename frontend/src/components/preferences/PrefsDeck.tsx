@@ -5,7 +5,11 @@ import { FONTS, NEWS_FONTS } from '@/constants/fonts'
 import { REGIONS_AUTH } from '@/constants/auth'
 import { PREF_ROLES, TOPIC_GROUPS, PREF_DEPTHS, PREF_DELIVERY, PREF_TONES } from '@/constants/preferences'
 import { grainSvg } from '@/lib/grain'
-import type { Palette, Prefs, User } from '@/types'
+import type { NewsFolder, Palette, Prefs, User } from '@/types'
+
+const topicMap = Object.fromEntries(
+  TOPIC_GROUPS.flatMap((g) => g.items.map((i) => [i.id, i.label]))
+)
 
 interface Props {
   open: boolean
@@ -17,16 +21,36 @@ interface Props {
   setPrefs: (p: Prefs) => void
   onSave: () => void
   user: User
+  folderMode?: boolean
+  onCreateFolder?: (folder: NewsFolder) => void
 }
 
 const STEPS = ['Role', 'Region', 'Topics', 'Depth', 'Delivery', 'Voice']
 
-export default function PrefsDeck({ open, onClose, palette, displayFont, newsFont, prefs, setPrefs, onSave, user }: Props) {
+export default function PrefsDeck({ open, onClose, palette, displayFont, newsFont, prefs, setPrefs, onSave, user, folderMode = false, onCreateFolder }: Props) {
   const [step, setStep] = useState(0)
+  const [showSummary, setShowSummary] = useState(false)
   const bodyRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => { if (open) setStep(0) }, [open])
+  useEffect(() => { if (open) { setStep(0); setShowSummary(false) } }, [open])
   useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = 0 }, [step])
+
+  const buildFolder = (): NewsFolder => {
+    const topics = prefs.topics || []
+    const labels = topics.slice(0, 3).map((t) => topicMap[t] || t)
+    const name = labels.length === 0 ? 'Mi folder'
+      : topics.length > 3 ? labels.slice(0, 2).join(' · ') + ` +${topics.length - 2}`
+      : labels.join(' · ')
+    const freq = (prefs.delivery?.[0] as NewsFolder['frequency']) || 'daily'
+    return { id: 'f' + Date.now(), name, topics, frequency: freq, threads: [] }
+  }
+
+  const handleFinish = () => setShowSummary(true)
+
+  const confirmCreateFolder = () => {
+    onCreateFolder?.(buildFolder())
+    setShowSummary(false)
+  }
 
   if (!open) return null
 
@@ -52,11 +76,19 @@ export default function PrefsDeck({ open, onClose, palette, displayFont, newsFon
         </button>
 
         <header className="prefs-head">
-          <div className="prefs-eyebrow" style={{ color: palette.muted }}>Your reading preferences</div>
+          <div className="prefs-eyebrow" style={{ color: palette.muted }}>
+            {folderMode ? 'Nuevo folder' : 'Your reading preferences'}
+          </div>
           <h2 className="prefs-title" style={{ fontFamily: FONTS[displayFont], color: palette.ink }}>
-            Tune your <span className="prefs-news" style={{ fontFamily: NEWS_FONTS[newsFont], color: palette.accent }}>news</span>
+            {folderMode
+              ? <>Configura tu <span className="prefs-news" style={{ fontFamily: NEWS_FONTS[newsFont], color: palette.accent }}>folder</span></>
+              : <>Tune your <span className="prefs-news" style={{ fontFamily: NEWS_FONTS[newsFont], color: palette.accent }}>news</span></>}
           </h2>
-          <p className="prefs-sub" style={{ color: palette.muted }}>A few quiet choices. MAI uses them to shape every briefing.</p>
+          <p className="prefs-sub" style={{ color: palette.muted }}>
+            {folderMode
+              ? 'Elige los temas y la frecuencia. El nombre se genera automáticamente.'
+              : 'A few quiet choices. MAI uses them to shape every briefing.'}
+          </p>
 
           <div className="prefs-stepper">
             {STEPS.map((s, i) => (
@@ -165,9 +197,10 @@ export default function PrefsDeck({ open, onClose, palette, displayFont, newsFon
               <div className="prefs-pane-h" style={{ color: palette.muted }}>No streaks. No notifications you didn&apos;t ask for.</div>
               <div className="prefs-radio-col">
                 {PREF_DELIVERY.map((c) => {
-                  const on = (prefs.delivery || []).includes(c.id)
+                  const on = prefs.delivery?.[0] === c.id
                   return (
-                    <button key={c.id} className={`prefs-radio ${on ? 'on' : ''}`} onClick={() => toggleArr('delivery', c.id)}
+                    <button key={c.id} className={`prefs-radio ${on ? 'on' : ''}`}
+                      onClick={() => setPrefs({ ...prefs, delivery: [c.id] })}
                       style={{ color: palette.ink, borderColor: on ? palette.ink : 'rgba(0,0,0,0.1)', background: on ? palette.cardBg : 'rgba(255,253,247,0.4)' }}>
                       <div className="prefs-radio-dot" style={{ borderColor: palette.ink, background: on ? palette.ink : 'transparent' }} />
                       <div style={{ flex: 1 }}>
@@ -178,7 +211,7 @@ export default function PrefsDeck({ open, onClose, palette, displayFont, newsFon
                   )
                 })}
               </div>
-              {(prefs.delivery || []).includes('breaking') && (
+              {prefs.delivery?.[0] === 'breaking' && (
                 <div className="prefs-keywords">
                   <label className="prefs-keywords-label" style={{ color: palette.muted }}>Keywords for breaking-news alerts</label>
                   <input type="text" className="prefs-keywords-input"
@@ -215,6 +248,7 @@ export default function PrefsDeck({ open, onClose, palette, displayFont, newsFon
               </div>
             </div>
           )}
+
         </div>
 
         <footer className="prefs-foot" style={{ borderColor: 'rgba(0,0,0,0.08)' }}>
@@ -223,9 +257,56 @@ export default function PrefsDeck({ open, onClose, palette, displayFont, newsFon
           {step < STEPS.length - 1 ? (
             <button className="prefs-next" onClick={() => setStep((s) => Math.min(s + 1, STEPS.length - 1))} style={{ background: palette.ink, color: palette.bg }}>Continue →</button>
           ) : (
-            <button className="prefs-next" onClick={onSave} style={{ background: palette.ink, color: palette.bg }}>Save preferences</button>
+            <button className="prefs-next" onClick={handleFinish} style={{ background: palette.ink, color: palette.bg }}>Save preferences</button>
           )}
         </footer>
+
+        {/* ── Summary overlay ── */}
+        {showSummary && (
+          <div className="folder-modal-overlay" onClick={() => setShowSummary(false)}>
+            <div className="folder-modal" onClick={(e) => e.stopPropagation()} style={{ background: palette.bg, color: palette.ink }}>
+              <div className="folder-modal-head">
+                <div className="folder-modal-title" style={{ fontFamily: FONTS[displayFont] }}>Resumen</div>
+                <button className="folder-modal-close" onClick={() => setShowSummary(false)} style={{ color: palette.muted }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                </button>
+              </div>
+
+              <div className="folder-modal-preview" style={{ borderColor: 'rgba(0,0,0,0.08)', background: palette.cardBg }}>
+                <div className="folder-modal-preview-label" style={{ color: palette.muted }}>Nombre del folder</div>
+                <div className="folder-modal-preview-name" style={{ color: palette.ink, fontFamily: FONTS[displayFont] }}>
+                  {buildFolder().name}
+                </div>
+                <div className="folder-modal-preview-freq" style={{ color: palette.muted }}>
+                  {PREF_DELIVERY.find((d) => d.id === prefs.delivery?.[0])?.label || '—'}
+                </div>
+              </div>
+
+              <div className="summary-list">
+                {[
+                  { label: 'Rol', value: PREF_ROLES.find((r) => r.id === prefs.role)?.label },
+                  { label: 'Región', value: REGIONS_AUTH.find((r) => r.id === prefs.region)?.label },
+                  { label: 'Temas', value: (prefs.topics || []).map((t) => topicMap[t] || t).join(', ') || '—' },
+                  { label: 'Profundidad', value: PREF_DEPTHS.find((d) => d.id === prefs.depth)?.label },
+                  { label: 'Frecuencia', value: PREF_DELIVERY.find((d) => d.id === prefs.delivery?.[0])?.label },
+                  { label: 'Tono', value: PREF_TONES.find((t) => t.id === prefs.tone)?.label },
+                ].filter((r) => r.value).map((r) => (
+                  <div key={r.label} className="summary-row">
+                    <span className="summary-label" style={{ color: palette.muted }}>{r.label}</span>
+                    <span className="summary-value" style={{ color: palette.ink }}>{r.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="folder-form-actions">
+                <button className="folder-form-cancel" onClick={() => setShowSummary(false)} style={{ color: palette.muted }}>← Editar</button>
+                <button className="folder-form-save" onClick={confirmCreateFolder} style={{ background: palette.ink, color: palette.bg }}>
+                  Crear folder
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

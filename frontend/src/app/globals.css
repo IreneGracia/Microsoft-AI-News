@@ -95,6 +95,94 @@ kbd {
 .thread-item.active { background: rgba(255,253,247,0.7); }
 .t-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-weight: 450; }
 .t-time { font-size: 11px; margin-top: 2px; }
+
+/* ── Folder sidebar ── */
+.folder-list { list-style: none; margin: 0; padding: 0; flex: 1; overflow-y: auto; }
+.folder-row { position: relative; display: flex; align-items: center; }
+.folder-item {
+  flex: 1; display: flex; align-items: flex-start; gap: 9px;
+  width: 100%; background: transparent; border: 0;
+  padding: 10px 10px; border-radius: 10px; text-align: left;
+  margin-bottom: 3px; transition: background 0.15s; cursor: pointer;
+}
+.folder-item:hover { background: rgba(255,253,247,0.45); }
+.folder-item.active { background: rgba(255,253,247,0.7); }
+.folder-meta { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.folder-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.folder-topics { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.folder-freq { display: inline-block; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; padding: 2px 7px; border-radius: 999px; margin-top: 3px; }
+.folder-del { display: none; background: transparent; border: 0; padding: 5px 6px; border-radius: 6px; cursor: pointer; transition: background 0.12s; flex-shrink: 0; align-items: center; }
+.folder-row:hover .folder-del { display: flex; }
+.folder-del:hover { background: rgba(0,0,0,0.07); }
+.folder-group { margin-bottom: 2px; }
+.folder-threads { padding-left: 0; margin-bottom: 4px; }
+.new-thread-btn {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%; background: transparent; border: 0;
+  padding: 7px 10px 7px 28px; font-size: 11.5px; letter-spacing: 0.01em;
+  cursor: pointer; border-radius: 8px; transition: background 0.13s;
+}
+.new-thread-btn:hover { background: rgba(255,253,247,0.4); }
+.add-folder-btn {
+  display: flex; align-items: center; gap: 7px;
+  width: 100%; background: transparent; border: 1px dashed rgba(0,0,0,0.18);
+  padding: 9px 12px; border-radius: 10px; font-size: 12.5px;
+  transition: background 0.15s; margin-top: 6px; cursor: pointer;
+}
+.add-folder-btn:hover { background: rgba(255,253,247,0.5); }
+/* ── Folder form inside PrefsDeck ── */
+.folder-card { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; background: rgba(255,253,247,0.5); border-radius: 12px; border: 1px solid rgba(0,0,0,0.07); margin-bottom: 8px; }
+.folder-card-meta { flex: 1; min-width: 0; }
+.folder-card-name { font-size: 13.5px; font-weight: 500; }
+.folder-card-detail { font-size: 11.5px; margin-top: 3px; opacity: 0.62; }
+.folder-card-del { background: transparent; border: 0; padding: 4px; border-radius: 6px; cursor: pointer; transition: background 0.12s; flex-shrink: 0; }
+.folder-card-del:hover { background: rgba(0,0,0,0.07); }
+.folder-form { display: flex; flex-direction: column; gap: 16px; padding: 16px; background: rgba(255,253,247,0.4); border-radius: 14px; border: 1px solid rgba(0,0,0,0.08); margin-top: 10px; }
+.folder-form-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; margin-bottom: 5px; display: block; }
+.folder-form-input { width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.14); background: rgba(255,253,247,0.8); font-size: 14px; outline: none; font-family: inherit; }
+.folder-form-input:focus { border-color: rgba(0,0,0,0.35); }
+.folder-form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+.folder-form-cancel { background: transparent; border: 1px solid rgba(0,0,0,0.14); padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+.folder-form-cancel:hover { background: rgba(0,0,0,0.05); }
+.folder-form-save { padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; border: 0; font-weight: 500; }
+.folder-form-save:disabled { opacity: 0.4; cursor: default; }
+.create-folder-btn { display: flex; align-items: center; gap: 7px; width: 100%; background: transparent; border: 1px dashed rgba(0,0,0,0.18); padding: 11px 14px; border-radius: 10px; font-size: 13px; transition: background 0.15s; cursor: pointer; margin-top: 4px; }
+.create-folder-btn:hover { background: rgba(255,253,247,0.6); }
+/* ── Folder creation modal ── */
+.folder-modal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.folder-modal {
+  width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto;
+  border-radius: 20px; padding: 24px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.22);
+  display: flex; flex-direction: column; gap: 18px;
+}
+.folder-modal-head { display: flex; align-items: center; justify-content: space-between; }
+.folder-modal-title { font-size: 18px; font-weight: 500; }
+.folder-modal-close { background: transparent; border: 0; padding: 4px; cursor: pointer; border-radius: 6px; display: flex; align-items: center; }
+.folder-modal-close:hover { background: rgba(0,0,0,0.07); }
+.folder-modal-preview {
+  border: 1px solid; border-radius: 14px; padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.folder-modal-preview-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
+.folder-modal-preview-name { font-size: 20px; font-weight: 500; margin-top: 4px; line-height: 1.2; }
+.folder-modal-preview-freq { font-size: 12px; margin-top: 6px; }
+/* ── Briefing message ── */
+.briefing-msg { display: flex; flex-direction: column; gap: 10px; max-width: 760px; margin: 0 auto; padding: 8px 0 16px; }
+.briefing-header { font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 700; }
+.briefing-greeting { font-size: 28px; font-weight: 500; line-height: 1.15; }
+.briefing-subtitle { font-size: 14px; line-height: 1.5; margin-bottom: 4px; }
+
+.summary-list { display: flex; flex-direction: column; gap: 8px; }
+.summary-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 13px; }
+.summary-label { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; flex-shrink: 0; }
+.summary-value { text-align: right; font-weight: 450; }
+
 .side-foot { border-top: 1px solid; padding: 12px 8px 4px; font-size: 12px; }
 .user-row { display: flex; align-items: center; gap: 10px; }
 .avatar {

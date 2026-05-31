@@ -16,6 +16,30 @@ interface Props {
 
 export default function Message({ msg, palette, displayFont, compact, onAction, onActionChip, onFollowup }: Props) {
   const isUser = msg.role === 'user'
+
+  if (msg.briefing) {
+    return (
+      <div className="msg msg-ai briefing-msg">
+        <div className="briefing-header" style={{ color: palette.muted }}>
+          {msg.briefing.header}
+        </div>
+        <div className="briefing-greeting" style={{ fontFamily: FONTS[displayFont], color: palette.ink }}>
+          {msg.briefing.greeting}
+        </div>
+        <div className="briefing-subtitle" style={{ color: palette.muted }}>
+          {msg.briefing.subtitle}
+        </div>
+        {msg.cards && (
+          <CardsBlock
+            cards={msg.cards} palette={palette}
+            followups={msg.briefing.followups}
+            onAction={onAction} onActionChip={onActionChip} onFollowup={onFollowup}
+          />
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className={`msg ${isUser ? 'msg-user' : 'msg-ai'} ${compact ? 'msg-compact' : ''}`}>
       {!isUser && (

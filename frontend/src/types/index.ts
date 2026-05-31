@@ -32,6 +32,15 @@ export interface Thread {
   pinned?: boolean
 }
 
+export interface NewsFolder {
+  id: string
+  name: string
+  topics: string[]
+  frequency: 'daily' | 'weekly' | 'breaking'
+  keywords?: string
+  threads: Thread[]
+}
+
 export interface NewsCard {
   id: string
   source: string
@@ -49,6 +58,12 @@ export interface ChatMessage {
   content?: string
   thinking?: boolean
   cards?: NewsCard[]
+  briefing?: {
+    header: string
+    greeting: string
+    subtitle: string
+    followups: string[]
+  }
 }
 
 export interface Prefs {
