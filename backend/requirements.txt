@@ -39,3 +39,4 @@ resend==2.4.0
 
 #used by data eng team
 pgvector==0.3.6
+psycopg[binary]==3.2.3
