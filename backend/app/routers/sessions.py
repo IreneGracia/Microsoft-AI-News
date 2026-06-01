@@ -302,7 +302,7 @@ def post_message(
 
     # 2. Extract conversation history and user preferences for the LLM.
     # Both are needed before the request-scoped DB session closes.
-    history_tuples = _extract_chat_history(db, sess_id=sess.id, limit=6)
+    history_tuples = _extract_chat_history(db, session_id=sess.id, limit=6)
     user_prefs = user.preferences or Preferences()  # fallback if no prefs set
 
     # Capture values as plain types before the generator runs (request-scoped
@@ -324,6 +324,7 @@ def post_message(
         real_citations: list[dict] = []
         prompt_tokens = 0
         completion_tokens = 0
+        used_stub = False
 
         try:
             from app.integrations.llm_bridge import chat_reply
@@ -338,23 +339,15 @@ def post_message(
             # Pipeline unavailable (import failed, vector store down, etc.)
             # Fall back to stub response.
             log.warning(f"chat_reply unavailable, falling back to stub: {e}")
-            stub_tokens = _stub_reply_tokens(user_content)
-            answer_text = "".join(stub_tokens)
-            real_citations = []
-            prompt_tokens = 0
-            completion_tokens = 0
-            stub_tokens = stub_tokens  # used below
+            answer_text = "".join(_stub_reply_tokens(user_content))
+            used_stub = True
 
-        # Stream the answer as tokens. If we got a real answer, split by words.
-        # If we fell back to stub, the stub already returns chunks.
-        if real_citations or prompt_tokens > 0:
-            # Real response: split answer by words for token-like chunks
-            words = answer_text.split()
-            for word in words:
+        # Stream the answer as tokens. Real answer: split by words. Stub: re-chunk.
+        if not used_stub:
+            for word in answer_text.split():
                 yield _sse("token", {"content": word + " "})
         else:
-            # Stub response: stream the pre-chunked tokens
-            for tok in stub_tokens:
+            for tok in _stub_reply_tokens(user_content):
                 yield _sse("token", {"content": tok})
 
         # Stream real citations from RAG retrieval
