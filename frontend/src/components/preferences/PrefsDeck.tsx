@@ -42,7 +42,7 @@ export default function PrefsDeck({ open, onClose, palette, displayFont, newsFon
       : topics.length > 3 ? labels.slice(0, 2).join(' · ') + ` +${topics.length - 2}`
       : labels.join(' · ')
     const freq = (prefs.delivery?.[0] as NewsFolder['frequency']) || 'daily'
-    return { id: 'f' + Date.now(), name, topics, frequency: freq, threads: [] }
+    return { id: 'f' + Date.now(), name, topics, frequency: freq, keywords: [], threads: [] }
   }
 
   const handleFinish = () => setShowSummary(true)

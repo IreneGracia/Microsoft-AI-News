@@ -10,13 +10,16 @@ import Toast from '@/components/ui/Toast'
 import ShareModal from '@/components/ui/ShareModal'
 import AuthGate from '@/components/auth/AuthGate'
 import PrefsDeck from '@/components/preferences/PrefsDeck'
+import FolderSettings from '@/components/folders/FolderSettings'
+import SavedView from '@/components/saved/SavedView'
+import Forum from '@/components/forum/Forum'
 import { TweaksPanel, TweakSection, TweakSelect, TweakSlider, TweakToggle, TweakText } from '@/components/ui/TweaksPanel'
 import { PALETTES } from '@/constants/palettes'
 import { FONTS, NEWS_FONTS } from '@/constants/fonts'
 import { BENCHMARK_CARDS, NEWS_BY_TOPIC, SUGGESTIONS, TOPIC_SUGGESTIONS, TWEAKS_DEFAULTS } from '@/constants/data'
 import { readSession, writeSession } from '@/lib/session'
 import { useTweaks } from '@/hooks/useTweaks'
-import type { ChatMessage, NewsCard, NewsFolder, Prefs, User } from '@/types'
+import type { ChatMessage, ForumPost, NewsCard, NewsFolder, Prefs, Thread, User } from '@/types'
 
 declare global {
   interface Window {
@@ -50,14 +53,56 @@ export default function App() {
     depth: 'deep', delivery: ['daily'], keywords: '', tone: 'calm', energy: 35,
   })
   const [folders, setFolders] = useState<NewsFolder[]>([
-    { id: 'f1', name: 'AI & Machine Learning', topics: ['ai_ml', 'hardware'], frequency: 'daily', threads: [
+    { id: 'f1', name: 'AI & Machine Learning', topics: ['ai_ml', 'hardware'], frequency: 'daily', keywords: [], threads: [
       { id: 'th1', title: 'Latest LLM benchmarks', time: 'Now' },
     ]},
-    { id: 'f2', name: 'Cybersecurity', topics: ['cyber', 'privacy'], frequency: 'daily', threads: [] },
-    { id: 'f3', name: 'Business & Markets', topics: ['ma', 'bigtech'], frequency: 'weekly', threads: [] },
+    { id: 'f2', name: 'Cybersecurity', topics: ['cyber', 'privacy'], frequency: 'daily', keywords: [], threads: [] },
+    { id: 'f3', name: 'Business & Markets', topics: ['ma', 'bigtech'], frequency: 'weekly', keywords: [], threads: [] },
   ])
-  const [activeFolderId, setActiveFolderId] = useState('f1')
+
+  const updateFolder = (updated: NewsFolder) =>
+    setFolders((fs) => fs.map((f) => f.id === updated.id ? { ...f, ...updated } : f))
+
+  const [folderSettingsTarget, setFolderSettingsTarget] = useState<NewsFolder | null>(null)
+  const [currentView, setCurrentView] = useState<'chat' | 'saved' | 'forum'>('chat')
+  const [savedArticleIds, setSavedArticleIds] = useState<Set<string>>(new Set())
+  const [savedArticles, setSavedArticles] = useState<NewsCard[]>([])
+  const [forumPosts, setForumPosts] = useState<ForumPost[]>([
+    { id: 'fp0', authorName: 'Sarah K.', title: 'How are you using AI tools in your daily workflow?', content: 'I\'ve been experimenting with Claude for summarising long reports. Would love to hear how others are integrating AI into their work.', status: 'approved', createdAt: '31 May 2026', likes: 4, likedByMe: false },
+  ])
+
+  const toggleSave = (card: NewsCard) => {
+    setSavedArticleIds((ids) => {
+      const next = new Set(ids)
+      if (next.has(card.id)) {
+        next.delete(card.id)
+        setSavedArticles((as) => as.filter((a) => a.id !== card.id))
+        setToast('Removed from saved.')
+      } else {
+        next.add(card.id)
+        setSavedArticles((as) => [card, ...as.filter((a) => a.id !== card.id)])
+        setToast('Article saved.')
+      }
+      return next
+    })
+  }
+  const [activeFolderId, setActiveFolderId] = useState<string | null>('f1')
   const [activeThreadId, setActiveThreadId] = useState('th1')
+  const [generalThreads, setGeneralThreads] = useState<Thread[]>([])
+
+  const addGeneralThread = () => {
+    const id = 'g' + Date.now()
+    setGeneralThreads((ts) => [{ id, title: 'New chat', time: 'Now' }, ...ts])
+    setActiveFolderId(null)
+    setActiveThreadId(id)
+    setMessages([])
+  }
+
+  const deleteGeneralThread = (threadId: string) =>
+    setGeneralThreads((ts) => ts.filter((t) => t.id !== threadId))
+
+  const pinGeneralThread = (threadId: string) =>
+    setGeneralThreads((ts) => ts.map((t) => t.id === threadId ? { ...t, pinned: !t.pinned } : t))
 
   const buildFolderBriefing = (folder: NewsFolder): ChatMessage[] => {
     const now = new Date()
@@ -71,7 +116,16 @@ export default function App() {
     const firstName = user?.name?.split(' ')[0] || 'there'
     const greeting = `${timeGreeting}, ${firstName}.`
 
-    const cards = folder.topics.flatMap((t) => NEWS_BY_TOPIC[t] ?? []).slice(0, 4)
+    const kw = (folder.keywords || []).map((k) => k.toLowerCase())
+    const allCards = folder.topics.flatMap((t) => NEWS_BY_TOPIC[t] ?? [])
+    const cards = (kw.length > 0
+      ? [...allCards].sort((a, b) => {
+          const aHit = kw.some((k) => a.title.toLowerCase().includes(k) || a.blurb.toLowerCase().includes(k))
+          const bHit = kw.some((k) => b.title.toLowerCase().includes(k) || b.blurb.toLowerCase().includes(k))
+          return (bHit ? 1 : 0) - (aHit ? 1 : 0)
+        })
+      : allCards
+    ).slice(0, 4)
     const followups = folder.topics
       .map((t) => TOPIC_SUGGESTIONS[t]?.prompt)
       .filter(Boolean)
@@ -229,12 +283,20 @@ User: ${text}`,
       <Sidebar
         palette={palette} displayFont={tw.displayFont} newsFont={tw.newsFont}
         folders={folders} activeFolderId={activeFolderId} activeThreadId={activeThreadId}
+        generalThreads={generalThreads}
         onSelectThread={(folderId, threadId) => { setActiveFolderId(folderId); setActiveThreadId(threadId); setMessages([]) }}
         onNewThread={addThread}
         onDeleteThread={deleteThread}
         onPinThread={pinThread}
+        onNewChat={addGeneralThread}
+        onDeleteGeneralThread={deleteGeneralThread}
+        onPinGeneralThread={pinGeneralThread}
         onOpenFolders={openFolders}
+        onOpenFolderSettings={(f) => setFolderSettingsTarget(f)}
         onDeleteFolder={(id) => setFolders((fs) => fs.filter((f) => f.id !== id))}
+        currentView={currentView}
+        onNavigate={(v) => setCurrentView(v)}
+        savedCount={savedArticles.length}
         user={user}
         onLogout={() => { writeSession(null); setUser(null) }}
       />
@@ -243,7 +305,9 @@ User: ${text}`,
         <header className="topbar">
           <div className="crumb" style={{ color: palette.muted }}>
             <span className="crumb-title" style={{ color: palette.ink }}>
-              {folders.find((f) => f.id === activeFolderId)?.name || 'Folder'}
+              {activeFolderId === null
+                ? (generalThreads.find((t) => t.id === activeThreadId)?.title || 'New chat')
+                : (folders.find((f) => f.id === activeFolderId)?.name || 'Folder')}
             </span>
           </div>
           <div className="topbar-right" style={{ color: palette.muted }}>
@@ -257,14 +321,29 @@ User: ${text}`,
             <div style={{ position: 'relative' }}>
               <button className="ghost-btn" onClick={() => setShareOpen((v) => !v)}>Share</button>
               <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} palette={palette}
-                title={folders.find((f) => f.id === activeFolderId)?.name || 'Folder'}
+                title={activeFolderId === null
+                  ? (generalThreads.find((t) => t.id === activeThreadId)?.title || 'New chat')
+                  : (folders.find((f) => f.id === activeFolderId)?.name || 'Folder')}
                 messages={messages} />
             </div>
           </div>
         </header>
 
         <section className="canvas" ref={scrollRef}>
-          {isEmpty ? (
+          {currentView === 'saved' ? (
+            <SavedView palette={palette} displayFont={tw.displayFont}
+              savedArticles={savedArticles} savedIds={savedArticleIds}
+              onToggleSave={toggleSave} onAction={handleAction} />
+          ) : currentView === 'forum' ? (
+            <Forum palette={palette} displayFont={tw.displayFont}
+              posts={forumPosts} user={user!}
+              onAddPost={(p) => { setForumPosts((ps) => [...ps, p]); setToast('Post submitted for review.') }}
+              onApprove={(id) => setForumPosts((ps) => ps.map((p) => p.id === id ? { ...p, status: 'approved' } : p))}
+              onReject={(id) => setForumPosts((ps) => ps.filter((p) => p.id !== id))}
+              onLike={(id) => setForumPosts((ps) => ps.map((p) => p.id === id
+                ? { ...p, likes: p.likedByMe ? p.likes - 1 : p.likes + 1, likedByMe: !p.likedByMe }
+                : p))} />
+          ) : isEmpty ? (
             <BriefingPreview
               palette={palette} displayFont={tw.displayFont} newsFont={tw.newsFont}
               prefs={prefs} user={user} onAsk={(q) => send(q)}
@@ -274,15 +353,18 @@ User: ${text}`,
               {messages.map((m) => (
                 <Message key={m.id} msg={m} palette={palette} displayFont={tw.displayFont}
                   compact={tw.compactMessages} onAction={handleAction}
+                  savedIds={savedArticleIds} onToggleSave={toggleSave}
                   onActionChip={handleActionChip} onFollowup={(f) => send(f)} />
               ))}
             </div>
           )}
         </section>
 
-        <div className="composer-wrap">
-          <Composer value={input} setValue={setInput} onSend={() => send()} palette={palette} disabled={busy} />
-        </div>
+        {currentView === 'chat' && (
+          <div className="composer-wrap">
+            <Composer value={input} setValue={setInput} onSend={() => send()} palette={palette} disabled={busy} />
+          </div>
+        )}
       </main>
 
       <Toast text={toast} onDone={() => setToast('')} />
@@ -298,6 +380,16 @@ User: ${text}`,
       />
 
       {tweakControls}
+
+      {folderSettingsTarget && (
+        <FolderSettings
+          folder={folderSettingsTarget}
+          palette={palette}
+          displayFont={tw.displayFont}
+          onSave={(updated) => { updateFolder(updated); setFolderSettingsTarget(null); setToast(`"${updated.name}" updated.`) }}
+          onClose={() => setFolderSettingsTarget(null)}
+        />
+      )}
     </div>
   )
 }

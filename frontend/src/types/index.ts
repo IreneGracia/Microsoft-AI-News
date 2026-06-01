@@ -37,7 +37,7 @@ export interface NewsFolder {
   name: string
   topics: string[]
   frequency: 'daily' | 'weekly' | 'breaking'
-  keywords?: string
+  keywords: string[]
   threads: Thread[]
 }
 
@@ -87,6 +87,17 @@ export interface Tweaks {
   tagline: string
   newsFont: string
   preloadDemo: boolean
+}
+
+export interface ForumPost {
+  id: string
+  authorName: string
+  title: string
+  content: string
+  status: 'pending' | 'approved'
+  createdAt: string
+  likes: number
+  likedByMe: boolean
 }
 
 export interface MockAccount {

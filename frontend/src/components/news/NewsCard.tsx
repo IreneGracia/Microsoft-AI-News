@@ -6,10 +6,12 @@ import type { NewsCard as NewsCardType, Palette } from '@/types'
 interface Props {
   card: NewsCardType
   palette: Palette
+  saved?: boolean
   onAction: (kind: string, card: NewsCardType) => void
+  onToggleSave?: (card: NewsCardType) => void
 }
 
-export default function NewsCard({ card, palette, onAction }: Props) {
+export default function NewsCard({ card, palette, saved = false, onAction, onToggleSave }: Props) {
   const isLead = card.tone === 'lead'
   return (
     <article
@@ -21,6 +23,20 @@ export default function NewsCard({ card, palette, onAction }: Props) {
         <span className="ncard-dot">·</span>
         <span>{card.time}</span>
         <span className="ncard-tag" style={{ background: palette.ink, color: palette.bg }}>{card.tag}</span>
+        {onToggleSave && (
+          <button
+            className="ncard-save-btn"
+            onClick={() => onToggleSave(card)}
+            title={saved ? 'Remove from saved' : 'Save article'}
+            style={{ color: saved ? palette.accent : palette.muted, marginLeft: 'auto' }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24"
+              fill={saved ? 'currentColor' : 'none'}
+              stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+            </svg>
+          </button>
+        )}
       </div>
       <h3 className="ncard-title" style={{ color: palette.ink }}>{card.title}</h3>
       <p className="ncard-blurb" style={{ color: palette.muted }}>{card.blurb}</p>

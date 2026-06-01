@@ -12,9 +12,11 @@ interface Props {
   onAction: (kind: string, card: NewsCard) => void
   onActionChip: (a: { id: string; label: string; icon: string }) => void
   onFollowup: (f: string) => void
+  savedIds?: Set<string>
+  onToggleSave?: (card: NewsCard) => void
 }
 
-export default function Message({ msg, palette, displayFont, compact, onAction, onActionChip, onFollowup }: Props) {
+export default function Message({ msg, palette, displayFont, compact, onAction, onActionChip, onFollowup, savedIds, onToggleSave }: Props) {
   const isUser = msg.role === 'user'
 
   if (msg.briefing) {
@@ -33,6 +35,7 @@ export default function Message({ msg, palette, displayFont, compact, onAction, 
           <CardsBlock
             cards={msg.cards} palette={palette}
             followups={msg.briefing.followups}
+            savedIds={savedIds} onToggleSave={onToggleSave}
             onAction={onAction} onActionChip={onActionChip} onFollowup={onFollowup}
           />
         )}
@@ -65,6 +68,7 @@ export default function Message({ msg, palette, displayFont, compact, onAction, 
           )}
           {msg.cards && (
             <CardsBlock cards={msg.cards} palette={palette}
+              savedIds={savedIds} onToggleSave={onToggleSave}
               onAction={onAction} onActionChip={onActionChip} onFollowup={onFollowup} />
           )}
         </>
