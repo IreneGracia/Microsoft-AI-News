@@ -36,3 +36,7 @@ openai==1.54.4
 # Transactional email via Resend (docs/local_stack.md §4 C11).
 # Used by the digest worker to send digests + magic links / verification.
 resend==2.4.0
+
+#used by data eng team
+pgvector==0.3.6
+psycopg[binary]==3.2.3

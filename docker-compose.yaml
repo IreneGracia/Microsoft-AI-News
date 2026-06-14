@@ -1,11 +1,41 @@
 services:
+  # ── Postgres + pgvector ──────────────────────────────────
+  # pgvector/pgvector image = official Postgres 16 with the
+  # vector extension preinstalled. Free, no setup required.
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: mainews
+      POSTGRES_PASSWORD: mainews_dev
+      POSTGRES_DB: mainews
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Mount the init script so `CREATE EXTENSION vector` runs
+      # automatically the first time the DB is initialised.
+      - ./backend/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mainews -d mainews"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── JupyterLab for data engineering exploration ──────────
   jupyter:
     build: .
-    container_name: microsoft_ai_news
     ports:
       - "8888:8888"
     volumes:
       - .:/app
     environment:
       - JUPYTER_ENABLE_LAB=yes
+      # Connection string for any notebook code that wants to talk to Postgres.
+      - DATABASE_URL=postgresql+psycopg://mainews:mainews_dev@postgres:5432/mainews
+    depends_on:
+      postgres:
+        condition: service_healthy
     command: ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--ServerApp.token=''", "--ServerApp.disable_check_xsrf=True"]
+
+volumes:
+  postgres_data:

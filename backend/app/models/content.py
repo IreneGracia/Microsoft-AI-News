@@ -27,6 +27,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from pgvector.sqlalchemy import Vector
 
 from app.db.base import Base
 
@@ -80,6 +81,10 @@ class Source(Base):
     # Free-text licensing posture — compliance section in the final report
     # explains the values (e.g. "rss-snippet-only", "press-license", "public").
     license: Mapped[str | None] = mapped_column(String, nullable=True)
+    # ─── Compliance fields (data-engineering pipeline writes these) ─────
+    rss_feed_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    # "allowed" | "disallowed" | "unknown" — captured at ingestion time.
+    robots_txt_status: Mapped[str | None] = mapped_column(String, nullable=True)
 
     # Registry metadata from sources.json. `category` (e.g. "Tech",
     # "Aggregator"), `source_type` (e.g. "primary", "secondary",
@@ -115,6 +120,16 @@ class Article(Base):
     # Short extract for hover/preview rendering. Full body lives in Blob.
     extract: Mapped[str | None] = mapped_column(Text, nullable=True)
     body_blob_ref: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    # Compliance + traceability 
+    rss_feed_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    content_hash: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    original_language: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    # pgvector embedding (384 dims = all-MiniLM-L6-v2)
+    # Nullable so an article can exist before the embedding step runs.
+    # The ivfflat index is created out-of-band — see db/init.sql.
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
 
     source: Mapped["Source"] = relationship()
     tags: Mapped[list["ArticleTag"]] = relationship(
