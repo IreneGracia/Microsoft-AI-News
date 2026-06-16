@@ -12,7 +12,7 @@
 | Piece | Provider | Plan | Year-1 cost | Why this one |
 |---|---|---|---|---|
 | **Backend API** ([backend/](../backend/)) | **Azure Container Apps** | Consumption, 0.5 vCPU / 1 GiB, scale-to-zero | $0 under free monthly grant (180k vCPU-sec) | Scales to zero between cron fires — compute bill is effectively zero at MVP traffic. Pulls image from ghcr.io. |
-| **Frontend** ([frontend/](../frontend/), Next.js) | **Azure Static Web Apps** | Free | $0 | First-class Next.js support, free SSL, free custom domains. |
+| **Frontend** ([frontend/](../frontend/), Next.js static export) | **Azure Storage static website** | Standard_LRS | a few cents/month | Static Web Apps isn't available in this subscription's allowed regions (francecentral/swedencentral); Storage's static-website feature has no such restriction and serves HTTPS by default. |
 | **PostgreSQL + pgvector** | **Azure Database for PostgreSQL** | Flexible Server, Burstable B1ms, 32 GB | $0 for first 12 months (then ~$13/mo) | Real Postgres with pgvector via `azure.extensions`. Free for a year on new accounts. |
 | **Container registry** | **GitHub Container Registry** (ghcr.io) | Free for public repos | $0 | Skips Azure Container Registry's ~$5/mo Basic tier. |
 | **Log Analytics** | **Azure Monitor Log Analytics** | PerGB2018 | $0 under 5 GB free monthly grant | Required by Container Apps; cheapest option that integrates. |
@@ -30,7 +30,7 @@
                        USER'S BROWSER
                               │
                               ▼
-            Azure Static Web Apps ─── Next.js frontend
+            Azure Storage static website ─── Next.js frontend (static export)
                               │
                               │ HTTPS / REST + SSE
                               ▼
@@ -53,12 +53,12 @@ One cloud (Azure). Three external API providers (OpenAI, Anthropic, Resend). One
 | 1 | Create free Entra tenant | https://entra.microsoft.com | Steps in [backend/.env.example](../backend/.env.example) |
 | 2 | Create OpenAI + Anthropic API keys + **set usage caps** | platform.openai.com / console.anthropic.com | Caps matter — runaway bugs can be expensive |
 | 3 | Sign up for Resend, generate API key | https://resend.com | Verify a sending domain |
-| 4 | `az login` + `az group create --name mai-news-rg --location westeurope` | local terminal | Pick the region closest to your users |
-| 5 | `az deployment group create -g mai-news-rg -f infra/main.bicep -p infra/main.parameters.json -p postgresAdminPassword=$(openssl rand -base64 24)` | local terminal | Provisions Postgres, Container Apps, Static Web App, Log Analytics |
+| 4 | `az login` + `az group create --name mai-news-rg --location francecentral` | local terminal | This subscription's stacked region policies only allow francecentral or swedencentral — see the comment in `infra/main.bicep` |
+| 5 | `az deployment group create -g mai-news-rg -f infra/main.bicep -p infra/main.parameters.json -p postgresAdminPassword=$(openssl rand -base64 24)` | local terminal | Provisions Postgres, Container Apps, the frontend storage account, Log Analytics |
 | 6 | `az containerapp secret set ...` for JWT, Entra, OpenAI, Anthropic, Resend, worker secrets | local terminal | See [infra/README.md](../infra/README.md) for the full command |
-| 7 | Set up GitHub Actions secrets: `AZURE_CREDENTIALS`, `AZURE_RESOURCE_GROUP`, `CONTAINER_APP_NAME` | GitHub repo settings | First push to `main` triggers image build + Container App roll |
-| 8 | Get the Static Web App deployment token from the portal; add as `AZURE_STATIC_WEB_APPS_API_TOKEN` | GitHub repo settings | Frontend deploys via SWA's auto-generated workflow |
-| 9 | Re-run step 5 with `frontendUrl=https://<your-swa>.azurestaticapps.net` so CORS is wired | local terminal | Bicep is idempotent |
+| 7 | Set up GitHub Actions secrets: `AZURE_CREDENTIALS`, `AZURE_RESOURCE_GROUP`, `CONTAINER_APP_NAME`, `FRONTEND_STORAGE_ACCOUNT`, `NEXT_PUBLIC_API_URL` | GitHub repo settings | First push to `main` triggers both `deploy-backend.yml` and `deploy-frontend.yml` |
+| 8 | Grant the `AZURE_CREDENTIALS` service principal the **Storage Blob Data Contributor** role on the frontend storage account | local terminal | See "Grant the deploy identity access" in [infra/README.md](../infra/README.md) — needed since the workflow uploads via Azure AD auth, not an account key |
+| 9 | Re-run step 5 with `frontendUrl=<frontendUrl Bicep output>` so CORS is wired | local terminal | Bicep is idempotent |
 | 10 | Update Entra App Registration redirect URI to the deployed `/auth/callback` | Entra portal | `https://<your-container-app>.azurecontainerapps.io/api/v1/auth/callback` |
 
 The full walkthrough with exact commands is in **[infra/README.md](../infra/README.md)**.
@@ -117,10 +117,11 @@ The whole stack is portable — application code (FastAPI, SQLAlchemy, the OAuth
 
 | File | What it does |
 |---|---|
-| [infra/main.bicep](../infra/main.bicep) | Provisions the whole Azure stack — Postgres + pgvector ext, Container Apps env, Container App, Static Web App, Log Analytics |
+| [infra/main.bicep](../infra/main.bicep) | Provisions the whole Azure stack — Postgres + pgvector ext, Container Apps env, Container App, frontend storage account, Log Analytics |
 | [infra/main.parameters.json](../infra/main.parameters.json) | Default parameter values (region, project name, image reference) |
 | [infra/README.md](../infra/README.md) | Step-by-step deploy guide with exact `az` commands + cost notes |
 | [.github/workflows/deploy-backend.yml](../.github/workflows/deploy-backend.yml) | Builds + pushes the image to ghcr.io and rolls the Container App on every push to `main` |
+| [.github/workflows/deploy-frontend.yml](../.github/workflows/deploy-frontend.yml) | Builds the Next.js static export and uploads it to the frontend storage account's `$web` container on every push to `main` |
 | [.github/workflows/digest-cron.yml](../.github/workflows/digest-cron.yml) | Hourly cron that fires the digest worker webhook — TZ-aware so each user gets 08:00 in their own timezone |
 | [backend/Dockerfile](../backend/Dockerfile) | Python 3.12 image; pre-downloads the sentence-transformers model at build so Container Apps cold starts don't refetch it |
 | [backend/.env.example](../backend/.env.example) | Full env-var reference with Azure Postgres + Neon + Docker Compose connection string examples |

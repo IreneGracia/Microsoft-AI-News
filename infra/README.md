@@ -11,8 +11,18 @@ the app's requirements.
 |---|---|---|
 | Azure Database for PostgreSQL Flexible Server | Burstable B1ms, 32 GB | ~$13/mo (free for 12 months on new accounts) |
 | Container Apps Environment + App | Consumption, 0.5 vCPU / 1 GiB, scale-to-zero | $0 under free monthly grant (180k vCPU-sec) |
-| Static Web App | Free tier | $0 |
+| Storage account (static website) | Standard_LRS, ~1-2 MB of static assets | a few cents/month |
 | Log Analytics workspace | PerGB2018 | $0 under 5 GB free monthly grant |
+
+**Frontend note:** Static Web Apps (the originally-planned host) isn't
+available in this subscription's allowed regions — see the comment above
+the `frontendStorage` resource in `main.bicep`. The frontend is instead a
+Next.js **static export** (`output: 'export'` in `frontend/next.config.ts`,
+since the app has no API routes or server actions) hosted on a plain
+Storage account's static-website feature, in the same francecentral
+region as everything else. Its `<account>.z##.web.core.windows.net`
+endpoint is served over HTTPS by default — no custom domain needed for
+a demo.
 
 **Why this shape:** Postgres + pgvector is mandatory (semantic search,
 RAG). Container Apps with scale-to-zero is the cheapest way to run a
@@ -57,8 +67,10 @@ az containerapp secret set \
 az containerapp update --name mainews-api --resource-group mai-news-rg
 ```
 
-The deployment outputs the Container App URL and Static Web App default
-hostname — grab those for the next step.
+The deployment outputs the Container App URL (`backendUrl`) and the
+frontend storage static-website URL (`frontendUrl`) — grab those for the
+next step. The frontend URL won't actually serve anything until the
+frontend deploy workflow runs (step below) and uploads a build to it.
 
 ## Wire CORS once the frontend has a URL
 
@@ -68,24 +80,42 @@ az deployment group create \
   --template-file main.bicep \
   --parameters main.parameters.json \
   --parameters postgresAdminPassword="$PG_PWD" \
-  --parameters frontendUrl="https://<your-swa>.azurestaticapps.net"
+  --parameters frontendUrl="<frontendUrl output from step 3>"
+```
+
+## Grant the deploy identity access to the frontend storage account
+
+The frontend workflow uploads via Azure AD auth (`--auth-mode login`),
+not an account key, so the same service principal used for
+`AZURE_CREDENTIALS` needs the **Storage Blob Data Contributor** role on
+the storage account:
+
+```bash
+az role assignment create \
+  --assignee <AZURE_CREDENTIALS clientId> \
+  --role "Storage Blob Data Contributor" \
+  --scope $(az storage account show --name <frontendStorageAccountName output> \
+              --resource-group mai-news-rg --query id -o tsv)
 ```
 
 ## CI/CD
 
 `.github/workflows/deploy-backend.yml` rebuilds the image and rolls the
-Container App on every push to `main` that touches backend code. Set
-three GitHub secrets:
+Container App on every push to `main` that touches backend code.
+
+`.github/workflows/deploy-frontend.yml` builds the Next.js static export
+and uploads it to the storage account's `$web` container on every push to
+`main` that touches frontend code.
+
+Set these GitHub secrets (Settings → Secrets and variables → Actions):
 
 | Secret | Value |
 |---|---|
 | `AZURE_CREDENTIALS` | output of `az ad sp create-for-rbac --name mai-news-deploy --role contributor --scopes /subscriptions/<sub>/resourceGroups/mai-news-rg --sdk-auth` |
 | `AZURE_RESOURCE_GROUP` | `mai-news-rg` |
 | `CONTAINER_APP_NAME` | `mainews-api` |
-
-Frontend deploys via the auto-generated Static Web Apps workflow (visible
-in the SWA blade in the portal — copy the deployment token, add it as
-`AZURE_STATIC_WEB_APPS_API_TOKEN`).
+| `FRONTEND_STORAGE_ACCOUNT` | the `frontendStorageAccountName` Bicep output |
+| `NEXT_PUBLIC_API_URL` | the deployed backend's API base, e.g. `https://mainews-api.<env>.azurecontainerapps.io/api/v1` |
 
 ## Cost watch
 

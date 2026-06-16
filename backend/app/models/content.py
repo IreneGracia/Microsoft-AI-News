@@ -5,8 +5,9 @@ These tables are populated by the data-engineering pipeline (ingestion +
 tagging). The backend reads from them to serve `/articles/{id}` and to
 resolve citations on digest items and chat turns.
 
-For MVP we keep article *bodies* out of Postgres (those live in Blob); only
-metadata and a short extract sit here so citation rendering is cheap.
+Article body text is stored inline (`body`) along with its pgvector
+embedding, so RAG retrieval and citation rendering both read straight
+from Postgres with no separate blob store.
 
 Tagging is multi-dimensional: the controlled vocabulary in `Tag` spans every
 taxonomy dimension (topic, business, regulation_policy, regional, role,
@@ -82,6 +83,10 @@ class Source(Base):
     # Free-text licensing posture — compliance section in the final report
     # explains the values (e.g. "rss-snippet-only", "press-license", "public").
     license: Mapped[str | None] = mapped_column(String, nullable=True)
+    # ─── Compliance fields (data-engineering pipeline writes these) ─────
+    rss_feed_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    # "allowed" | "disallowed" | "unknown" — captured at ingestion time.
+    robots_txt_status: Mapped[str | None] = mapped_column(String, nullable=True)
 
     # Registry metadata from sources.json. `category` (e.g. "Tech",
     # "Aggregator"), `source_type` (e.g. "primary", "secondary",
@@ -121,6 +126,12 @@ class Article(Base):
     extract: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Full cleaned article text — used for embedding + LLM summarisation.
     body: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Compliance + traceability
+    rss_feed_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    content_hash: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    original_language: Mapped[str | None] = mapped_column(String, nullable=True)
+
     # Article embedding for RAG retrieval. Dimensionality is governed by
     # `settings.embedding_dim` (must match the encoder model). Null until
     # the data pipeline embeds the article. Cosine similarity search uses

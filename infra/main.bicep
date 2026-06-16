@@ -84,7 +84,14 @@ var uniqueSuffix = uniqueString(resourceGroup().id)
 var postgresName = '${projectName}-pg-${uniqueSuffix}'
 var containerAppEnvName = '${projectName}-cae'
 var containerAppName = '${projectName}-api'
-// var staticWebAppName = '${projectName}-web'  // re-enable with the SWA resource below
+// Storage accounts allow only lowercase letters/numbers, 3-24 chars —
+// no hyphens. This is the frontend host (static website hosting),
+// substituting for Static Web Apps which this subscription's region
+// policy blocks (see the comment above the storageAccount resource).
+// `take(projectName, 8)` keeps the total under 24 chars even at
+// projectName's max allowed length (16) — uniqueSuffix is 13 chars and
+// must be kept whole for global-uniqueness guarantees.
+var frontendStorageAccountName = toLower('${take(projectName, 8)}web${uniqueSuffix}')
 var logAnalyticsName = '${projectName}-logs'
 var emailServiceName = '${projectName}-email'
 var communicationServiceName = '${projectName}-comms'
@@ -390,33 +397,50 @@ resource communicationService 'Microsoft.Communication/communicationServices@202
   }
 }
 
-// ─── Static Web App (frontend) ───────────────────────────────────────
+// ─── Frontend host: Azure Storage static website ─────────────────────
 //
-// DISABLED for this subscription: Microsoft.Web/staticSites is only
-// available in centralus, eastus2, westus2, westeurope, eastasia —
-// none of which intersect with this subscription's stacked region
-// policies (allowed EU set: francecentral, swedencentral). Re-enable
-// once on a subscription without the region restriction, or pair with
-// an Azure Storage static website in francecentral as a substitute.
+// Static Web Apps (Microsoft.Web/staticSites) is NOT available here:
+// that resource type is only offered in centralus, eastus2, westus2,
+// westeurope, eastasia — none of which intersect with this
+// subscription's stacked region policies (allowed EU set: francecentral,
+// swedencentral). A Storage account's static-website feature has no
+// such restriction, runs in francecentral alongside the rest of the
+// stack, and serves the exported Next.js SPA over HTTPS by default on
+// its `<account>.z##.web.core.windows.net` endpoint — no custom domain
+// needed for a demo.
 //
-// resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
-//   name: staticWebAppName
-//   location: location
-//   sku: {
-//     name: 'Free'
-//     tier: 'Free'
-//   }
-//   properties: {
-//     // GitHub linkage is configured by the SWA GitHub Action workflow at
-//     // deploy time, not in IaC, so we leave repositoryUrl empty here.
-//     provider: 'Custom'
-//   }
-// }
+// `allowBlobPublicAccess: true` is required for the $web container
+// (created automatically once static-website hosting is enabled) to be
+// publicly readable — the frontend has no secrets, so this is safe.
+//
+// Static-website hosting itself (index/error document config) isn't an
+// ARM/Bicep-settable property — it's enabled post-deploy via:
+//   az storage blob service-properties update --account-name <name> \
+//     --static-website --index-document index.html --404-document index.html
+// The frontend deploy workflow (.github/workflows/deploy-frontend.yml)
+// runs this on every deploy; it's idempotent.
+resource frontendStorage 'Microsoft.Storage/storageAccounts@2023-01-01' = {
+  name: frontendStorageAccountName
+  location: location
+  kind: 'StorageV2'
+  sku: {
+    name: 'Standard_LRS'
+  }
+  properties: {
+    allowBlobPublicAccess: true
+    minimumTlsVersion: 'TLS1_2'
+    publicNetworkAccess: 'Enabled'
+  }
+}
 
 // ─── Outputs ─────────────────────────────────────────────────────────
 
 output backendUrl string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
 output postgresFqdn string = postgres.properties.fullyQualifiedDomainName
 output postgresDatabaseName string = postgresDatabase.name
-// output staticWebAppDefaultHostname string = staticWebApp.properties.defaultHostname
-// output staticWebAppName string = staticWebApp.name
+output frontendStorageAccountName string = frontendStorage.name
+// The `web` primary endpoint exists on every StorageV2 account regardless
+// of whether static-website hosting has been turned on yet — Azure
+// reserves it at account creation. Once deploy-frontend.yml enables
+// static-website hosting and uploads the build, this URL serves it.
+output frontendUrl string = frontendStorage.properties.primaryEndpoints.web

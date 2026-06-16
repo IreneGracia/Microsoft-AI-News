@@ -60,12 +60,21 @@ def tag_slug(label: str) -> str:
 def _taxonomy_path() -> Path:
     """
     Locate sources.json. Override with the SOURCES_JSON_PATH env var; otherwise
-    fall back to the repo root (two levels above the `app` package).
+    try each layout's expected location and use the first one that exists.
+
+    Local dev: backend/app/seed.py -> repo root is 2 levels up.
+    Container (backend/Dockerfile COPYs backend/app/ to /app/app/ and
+    sources.json to /app/sources.json): the equivalent root is 1 level up.
     """
     override = os.environ.get("SOURCES_JSON_PATH")
     if override:
         return Path(override)
-    return Path(__file__).resolve().parents[2] / "sources.json"
+    here = Path(__file__).resolve()
+    for levels_up in (2, 1):
+        candidate = here.parents[levels_up] / "sources.json"
+        if candidate.exists():
+            return candidate
+    return here.parents[2] / "sources.json"
 
 
 def _load_sources_doc() -> dict:
