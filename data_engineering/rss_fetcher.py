@@ -95,24 +95,34 @@ def save_state(state: dict) -> None:
 
 # ── main fetch ───────────────────────────────────────────────────────────────
 
-def fetch_new_articles():
+def fetch_with_state(
+    feeds: list[dict],
+    state: dict,
+) -> tuple[list[dict], dict]:
     """
-    Poll every feed in RSS_FEEDS. Return a list of normalized dicts for
-    entries published after each source's last watermark.
-    """
-    state = load_state(RSS_FEEDS)
-    new_articles = []
+    Core incremental fetch.  No file I/O — the caller owns state persistence.
 
-    for feed_meta in RSS_FEEDS:
+    Args:
+        feeds:  list of feed dicts (same shape as RSS_FEEDS).
+        state:  {source_id: iso_timestamp | None} — last watermark per source.
+
+    Returns:
+        (articles, updated_state) where articles is a list of normalized dicts
+        and updated_state carries the new high-watermark per source.
+    """
+    new_articles: list[dict] = []
+    updated_state: dict = dict(state)
+
+    for feed_meta in feeds:
         src_id = feed_meta["id"]
-        url = feed_meta["url"]
+        feed_url = feed_meta["url"]
         category = feed_meta["category"]
         last_fetched_at = state.get(src_id)
         last_dt = _parse_iso(last_fetched_at)
         last_display = last_fetched_at or "never"
 
         try:
-            parsed = feedparser.parse(url)
+            parsed = feedparser.parse(feed_url)
         except Exception as exc:
             print(f"[{src_id}] fetch error: {exc} — skipping")
             continue
@@ -122,7 +132,7 @@ def fetch_new_articles():
             print(f"[{src_id}] feed error: {exc} — skipping")
             continue
 
-        source_new = []
+        source_new: list[dict] = []
         max_pub_dt = last_dt
 
         for entry in parsed.entries:
@@ -133,17 +143,17 @@ def fetch_new_articles():
                     f"({entry.get('link', '<no link>')}) — using current time"
                 )
 
-            # incremental filter: drop entries we've already seen
             if last_dt is not None and pub_dt <= last_dt:
                 continue
 
             source_new.append({
-                "url": entry.get("link", ""),
-                "title": entry.get("title", ""),
-                "summary": _extract_summary(entry),
+                "url":       entry.get("link", ""),
+                "title":     entry.get("title", ""),
+                "summary":   _extract_summary(entry),
                 "source_id": src_id,
-                "category": category,
-                "pub_date": pub_dt.isoformat(),
+                "rss_feed_url": feed_url,
+                "category":  category,
+                "pub_date":  pub_dt.isoformat(),
                 "fetched_at": _now_iso(),
             })
 
@@ -153,12 +163,21 @@ def fetch_new_articles():
         print(f"[{src_id}] {len(source_new)} new articles since {last_display}")
         new_articles.extend(source_new)
 
-        # bump watermark to most recent pub_date seen this source, persist now
         if max_pub_dt is not None:
-            state[src_id] = max_pub_dt.isoformat()
-        save_state(state)
+            updated_state[src_id] = max_pub_dt.isoformat()
 
-    return new_articles
+    return new_articles, updated_state
+
+
+def fetch_new_articles() -> list[dict]:
+    """
+    Backward-compatible wrapper: loads/saves watermarks from fetch_state.json.
+    Use fetch_with_state() directly when watermarks live in Postgres.
+    """
+    state = load_state(RSS_FEEDS)
+    articles, updated_state = fetch_with_state(RSS_FEEDS, state)
+    save_state(updated_state)
+    return articles
 
 
 # ── CLI entrypoint ───────────────────────────────────────────────────────────
