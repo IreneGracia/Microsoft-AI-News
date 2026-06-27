@@ -86,7 +86,7 @@ class Settings(BaseSettings):
     # login. The JWT is appended as a URL fragment (`#access_token=...`);
     # the frontend extracts it on load and clears the URL.
     # In prod: the Vercel deployment URL (e.g. https://tech-intel-news.vercel.app).
-    frontend_url: str = "http://localhost:5173"
+    frontend_url: str = "http://localhost:3000"
 
     # ─── CORS allowed origins (prod) ──────────────────────────────────────
     # In dev, main.py uses a fixed list of localhost dev-server ports so

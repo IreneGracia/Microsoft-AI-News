@@ -28,7 +28,6 @@ class Settings(BaseSettings):
     news_api_key: str = ""
 
     # Vector store
-    chroma_persist_dir: str = "./data/chroma_db"
     embedding_model: str = "all-MiniLM-L6-v2"  # lightweight, 384-dim
 
     # Token economy — max tokens per newsletter generation call

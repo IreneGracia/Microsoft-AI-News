@@ -5,9 +5,7 @@ This is the entry point for scheduled newsletter runs and can also be
 called manually to test the full flow.
 
 The vector store is dependency-injected. In production the backend passes
-in its pgvector-backed `app.rag.vector_store.ArticleVectorStore`; the
-default ChromaDB implementation here is kept for standalone test runs of
-the pipeline without a Postgres dependency.
+in its pgvector-backed `ArticleVectorStore`; tests can pass a stub.
 """
 from __future__ import annotations
 
@@ -16,7 +14,7 @@ import structlog
 from src.models import NewsletterDigest, UserProfile
 from src.ingestion.fetcher import RSSFetcher
 from src.ingestion.deduplicator import ArticleDeduplicator
-from src.rag.vector_store import ArticleVectorStore as ChromaVectorStore
+from src.rag.vector_store import ArticleVectorStore
 from src.personalization.ranker import rank_articles
 from src.llm.newsletter import NewsletterGenerator
 from src.llm.client import LLMClient
@@ -36,7 +34,7 @@ class NewsPipeline:
     def __init__(self, vector_store=None):
         self._fetcher = RSSFetcher()
         self._deduplicator = ArticleDeduplicator()
-        self._vector_store = vector_store if vector_store is not None else ChromaVectorStore()
+        self._vector_store = vector_store if vector_store is not None else ArticleVectorStore()
         self._llm = LLMClient()
         self._generator = NewsletterGenerator(self._llm)
 
