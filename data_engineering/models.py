@@ -43,9 +43,9 @@ class ArticleRecord:
     author: Optional[str] = None
     original_language: str = "en"
 
-    # ── Populated by embedder ─────────────────────────────────────────────────
-    # 384-dim float list — null until the embedding step runs.
-    embedding: Optional[list[float]] = field(default=None, repr=False)
+    # ── Populated by tagger + quality_score ───────────────────────────────────
+    tags: dict = field(default_factory=dict)         # {topic:[...], business:[...], regulation_policy:[...]}
+    importance: float = 0.0                          # 0-1 surfacing score
 
     @property
     def embed_text(self) -> str:

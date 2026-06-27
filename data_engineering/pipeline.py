@@ -15,6 +15,8 @@ The backend and LLM side read those tables but never write embeddings.
 """
 
 from __future__ import annotations
+from tagger import tag_articles_batch
+from quality_score import score_articles_batch
 
 import sys
 from datetime import datetime, timezone
@@ -101,6 +103,11 @@ def _run(conn) -> dict:
     for record, emb in zip(records, embeddings):
         record.embedding = emb
     print(f"[pipeline] embedded: {len(records)} articles")
+    # 5b. Tag each article (reuses the embedding — free, no API call) and
+    #     compute the importance score for top-news surfacing.
+    tag_articles_batch(records)
+    score_articles_batch(records)
+    print(f"[pipeline] tagged + scored: {len(records)} articles")
 
     # 6. Upsert into articles table.
     written = _writer.upsert_articles(conn, records)
