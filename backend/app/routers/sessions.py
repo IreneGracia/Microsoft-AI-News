@@ -3,11 +3,16 @@
 
 Implements docs/api.md §3.5 and the SSE protocol in §4.
 
-Scope here is the **API surface**, not the LLM. The streaming POST emits
-a deterministic placeholder reply that follows the real event protocol
-(turn_start → token → citation → token → turn_end) so the frontend can
-build against it. Backend Dev 2 + LLM Engineer wire the real RAG +
-Azure OpenAI streaming in behind the same surface.
+The streaming POST runs real RAG + LLM inference via the llm_engineering
+pipeline: pgvector cosine search retrieves the top-k articles, those are
+injected as context into the prompt, and the configured LLM (Anthropic or
+OpenAI, per LLM_PROVIDER) streams the reply token-by-token. Citation events
+follow the answer, grounded in retrieved article IDs from the articles table.
+
+_stub_reply_tokens is a fallback only — it fires if the pipeline import
+fails (llm_engineering/ not on sys.path) or the LLM API call throws
+(missing key, exhausted credits, network error). Normal operation never
+hits the stub.
 """
 
 import json
