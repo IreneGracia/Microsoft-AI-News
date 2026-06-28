@@ -79,7 +79,7 @@ def run() -> dict:
                     digest = _generate_for_user(db, pipeline, vector_store, user)
                     db.commit()
                     generated += 1
-                    # Email is best-effort: a Resend outage shouldn't fail the
+                    # Email is best-effort: an ACS outage shouldn't fail the
                     # generation we just committed. _deliver_email opens its own
                     # session to update sent_at.
                     if digest is not None and _deliver_email(user, digest):

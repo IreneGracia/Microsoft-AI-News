@@ -80,21 +80,17 @@ param registryPassword string = ''
 
 // ─── Names (composed from projectName + uniqueness suffix) ────────────
 
-var uniqueSuffix = uniqueString(resourceGroup().id)
-var postgresName = '${projectName}-pg-${uniqueSuffix}'
+// Resource names — fixed to match what is actually deployed in mai-news-rg.
+// These were provisioned manually before Bicep was run; names are locked in.
+var postgresName = 'mainews-pgserver'              // deployed name; Bicep default was mainews-pg-<hash>
 var containerAppEnvName = '${projectName}-cae'
 var containerAppName = '${projectName}-api'
-// Storage accounts allow only lowercase letters/numbers, 3-24 chars —
-// no hyphens. This is the frontend host (static website hosting),
-// substituting for Static Web Apps which this subscription's region
-// policy blocks (see the comment above the storageAccount resource).
-// `take(projectName, 8)` keeps the total under 24 chars even at
-// projectName's max allowed length (16) — uniqueSuffix is 13 chars and
-// must be kept whole for global-uniqueness guarantees.
-var frontendStorageAccountName = toLower('${take(projectName, 8)}web${uniqueSuffix}')
+// Fixed name chosen for clarity; avoids the auto-generated uniqueString pattern
+// so the GitHub Actions secret FRONTEND_STORAGE_ACCOUNT is stable and readable.
+var frontendStorageAccountName = 'mainewswebstorage'
 var logAnalyticsName = '${projectName}-logs'
 var emailServiceName = '${projectName}-email'
-var communicationServiceName = 'mainews-comms2026' // manually created; mainews-comms was globally reserved
+var communicationServiceName = 'mainews-comms2026' // mainews-comms was globally reserved by another tenant
 
 // ─── Log Analytics (Container Apps needs a workspace) ────────────────
 
