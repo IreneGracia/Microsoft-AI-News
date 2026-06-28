@@ -110,17 +110,9 @@ class Settings(BaseSettings):
     openai_model_small: str = "gpt-4o-mini"
     openai_model_large: str = "gpt-4o"
 
-    # ─── Email (Azure Communication Services) ─────────────────────────────
-    # Connection string + sender address come from the
-    # Microsoft.Communication/communicationServices resource (Bicep) and
-    # its Azure Managed Domain. The Azure Managed Domain provisions a
-    # `DoNotReply@<random>.azurecomm.net` sender automatically — switch to
-    # a custom-verified domain later for branded mail.
-    acs_connection_string: str = ""
-    acs_sender_address: str = ""
-
-    # Legacy Resend settings (now unused — kept so existing .env files
-    # don't fail validation; safe to delete once everything is on ACS).
+    # ─── Email (Resend) ───────────────────────────────────────────────────
+    # https://resend.com — 3,000 emails/month free, no card required.
+    # RESEND_FROM must be a verified sender address or domain.
     resend_api_key: str = ""
     resend_from: str = "Tech Intel News <noreply@example.com>"
 

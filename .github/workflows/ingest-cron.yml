@@ -1,0 +1,32 @@
+name: Run ingest pipeline
+
+# Fetches fresh articles from all RSS sources every 6 hours and indexes
+# them into pgvector. Watermark-based — only new articles are processed.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   BACKEND_URL            e.g. https://your-app.azurecontainerapps.io
+#   WORKER_SHARED_SECRET   matches WORKER_SHARED_SECRET in the backend's env
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # every 6 hours: 00:00, 06:00, 12:00, 18:00 UTC
+  workflow_dispatch:
+
+jobs:
+  trigger-ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Trigger ingest worker webhook
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          WORKER_SHARED_SECRET: ${{ secrets.WORKER_SHARED_SECRET }}
+        run: |
+          if [ -z "$BACKEND_URL" ] || [ -z "$WORKER_SHARED_SECRET" ]; then
+            echo "::error::Missing BACKEND_URL or WORKER_SHARED_SECRET repo secret."
+            exit 1
+          fi
+          curl --fail --silent --show-error --max-time 600 \
+            -X POST \
+            -H "Authorization: Bearer $WORKER_SHARED_SECRET" \
+            "$BACKEND_URL/api/v1/internal/run-ingest"
