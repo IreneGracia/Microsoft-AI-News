@@ -146,19 +146,15 @@ class Settings(BaseSettings):
     # ─── Observability ───────────────────────────────────────────────────
     log_level: str = "INFO"
 
-    # ─── Email (Azure Communication Services) ─────────────────────────────
-    # Connection string + sender address come from the
-    # Microsoft.Communication/communicationServices resource (Bicep) and
-    # its Azure Managed Domain. The Azure Managed Domain provisions a
-    # `DoNotReply@<random>.azurecomm.net` sender automatically — switch to
-    # a custom-verified domain later for branded mail.
-    acs_connection_string: str = ""
-    acs_sender_address: str = ""
-
-    # Legacy Resend settings (now unused — kept so existing .env files
-    # don't fail validation; safe to delete once everything is on ACS).
-    resend_api_key: str = ""
-    resend_from: str = "Tech Intel News <noreply@example.com>"
+    # ─── Email (Gmail SMTP) ────────────────────────────────────────────────
+    # Outbound mail via Gmail SMTP SSL (port 465) + an App Password.
+    # Steps to get an App Password:
+    #   1. Enable 2-Step Verification on the sending Gmail account.
+    #   2. myaccount.google.com → Security → App Passwords.
+    #   3. Create one (name it "MAI News"), copy the 16-char code.
+    #   4. Set both variables — never use your account password here.
+    gmail_sender: str = ""
+    gmail_app_password: str = ""
 
     # ─── Internal worker auth ─────────────────────────────────────────────
     # Shared secret used to authenticate calls to /api/v1/internal/*
