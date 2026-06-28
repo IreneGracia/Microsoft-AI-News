@@ -38,10 +38,16 @@ Decisions made and work needed to resolve inconsistencies in the backend.
 
 **Fix applied:** `azure-communication-email` was missing from `requirements.txt` (runtime failure). Now added. `email.py` and `config.py` restored to ACS.
 
+**ACS resources created manually** (Bicep name `mainews-comms` was globally reserved):
+- Communication Service: `mainews-comms2026`
+- Email Service: `mainews-email` with Azure Managed Domain (DKIM/DMARC/SPF auto-verified)
+- Both linked; credentials pushed to Container App secrets and Key Vault
+
 - [x] Add `azure-communication-email==1.0.0` to `backend/requirements.txt` (was missing — fixed)
 - [x] `backend/app/integrations/email.py` — ACS implementation confirmed correct
 - [x] `backend/app/config.py` — `acs_connection_string` and `acs_sender_address` fields confirmed
-- [ ] Set `ACS_CONNECTION_STRING` and `ACS_SENDER_ADDRESS` in Azure Container Apps environment (portal or Bicep)
+- [x] Set `ACS_CONNECTION_STRING` and `ACS_SENDER_ADDRESS` in Azure Container Apps environment
+- [x] Update `infra/main.bicep` — `communicationServiceName` hardcoded to `mainews-comms2026` (was `${projectName}-comms`)
 
 ---
 
@@ -70,11 +76,11 @@ Decisions made and work needed to resolve inconsistencies in the backend.
 
 **Decision:** Azure Container Apps remains the primary deployment target.
 
-**Current state:** `infra/main.bicep` provisions Container Apps + Postgres Flexible Server + ACS + Storage. `render.yaml` exists as a fallback. CI/CD via `.github/workflows/deploy-backend.yml`.
+**Current state:** Backend deployed and live at `https://mainews-api.mangorock-b0c3e0fe.francecentral.azurecontainerapps.io`. CI/CD auto-deploy is blocked (needs Azure service principal with tenant admin rights — emailed Gustavo). Deploys are manual via `az containerapp update`.
 
 - [x] ~~Decide hosting~~ — Azure confirmed
-- [ ] After email provider switch (Task 4): update `infra/main.bicep` to remove ACS resource block
-- [ ] After email provider switch (Task 4): add new email provider env var to `main.bicep` managed environment secrets
+- [x] Backend deployed and live on Azure Container Apps
+- [x] `infra/main.bicep` updated to match real ACS resource name
 
 ---
 
@@ -82,74 +88,24 @@ Decisions made and work needed to resolve inconsistencies in the backend.
 
 **Decision:** Use GitHub Actions cron — already built, right tool for the job. No Airflow needed for MVP.
 
-**Current state:** `.github/workflows/digest-cron.yml.disabled` exists (hourly cron, POSTs to `/internal/run-digest-worker`). Just needs enabling + two repo secrets. Ingest cron is a separate workflow to add.
+**Current state:** Both cron workflows are live. Repo secrets set. Old disabled file deleted.
 
 - [x] Created `.github/workflows/digest-cron.yml` (hourly, POSTs to `/internal/run-digest-worker`)
 - [x] Created `.github/workflows/ingest-cron.yml` (every 6 hours, POSTs to `/internal/run-ingest`)
-- [ ] Delete `.github/workflows/digest-cron.yml.disabled` (superseded by the new file)
-- [ ] Set repo secret `BACKEND_URL` in GitHub → Settings → Secrets → Actions
-- [ ] Set repo secret `WORKER_SHARED_SECRET` in GitHub → Settings → Secrets → Actions
+- [x] Deleted `.github/workflows/digest-cron.yml.disabled` (superseded)
+- [x] Set repo secret `BACKEND_URL`
+- [x] Set repo secret `WORKER_SHARED_SECRET`
 - [ ] Test both workflows manually via `workflow_dispatch` before relying on the schedule
 
 ---
 
-## Exact Steps to Go Live
+## Remaining Steps to Go Live
 
-Do these in order. Everything below assumes you are logged into GitHub and the Azure Portal.
-
----
-
-### Step 1 — Get ACS credentials from Azure
-
-1. Go to **https://portal.azure.com**
-2. Search for **Communication Services** in the top search bar → open your MAI News ACS resource (created by the Bicep deploy)
-3. Left sidebar → **Settings** → **Keys** → copy the **Primary connection string** — this is your `ACS_CONNECTION_STRING`
-4. Left sidebar → **Email** → **Domains** → open your Azure Managed Domain → copy the **MailFrom address** (looks like `DoNotReply@<random>.azurecomm.net`) — this is your `ACS_SENDER_ADDRESS`
+Do these in order.
 
 ---
 
-### Step 2 — Add ACS credentials to your Container App
-
-1. Go to **https://portal.azure.com**
-2. Search for **Container Apps** → open your MAI News backend app
-3. Left sidebar → **Settings** → **Environment variables**
-4. Click **Add** and add these two variables:
-   - Name: `ACS_CONNECTION_STRING` | Value: *(the connection string from Step 1)*
-   - Name: `ACS_SENDER_ADDRESS` | Value: *(the MailFrom address from Step 1)*
-5. Click **Save** → the container restarts automatically (~30 seconds)
-
----
-
-### Step 3 — Add GitHub Actions secrets
-
-1. Go to your GitHub repo → **Settings** tab (top of repo page)
-2. Left sidebar → **Secrets and variables** → **Actions**
-3. Click **New repository secret** and add these one at a time:
-
-   | Name | Value |
-   |---|---|
-   | `BACKEND_URL` | Your Azure Container Apps URL, e.g. `https://your-app.azurecontainerapps.io` |
-   | `WORKER_SHARED_SECRET` | The value of `WORKER_SHARED_SECRET` from your `backend/.env` file |
-
-   > To find your Azure URL: Portal → Container Apps → your app → **Overview** → copy the **Application URL**
-
----
-
-### Step 4 — Delete the old disabled workflow
-
-In your repo, delete this file:
-```
-.github/workflows/digest-cron.yml.disabled
-```
-You can do it in the GitHub UI (open the file → click the trash icon) or locally:
-```bash
-git rm .github/workflows/digest-cron.yml.disabled
-git commit -m "chore: remove deprecated digest-cron disabled workflow"
-```
-
----
-
-### Step 5 — Merge tier3 into main and redeploy
+### Step 1 — Merge tier3 into main
 
 ```bash
 git checkout main
@@ -157,19 +113,47 @@ git merge tier3
 git push origin main
 ```
 
-This triggers `deploy-backend.yml` automatically — GitHub Actions will build a new Docker image and deploy it to Azure with the new Resend email code. Watch the **Actions** tab to confirm it succeeds.
+---
+
+### Step 2 — Rebuild and redeploy the backend
+
+CI/CD is blocked (needs Azure service principal with tenant admin rights). Do it manually:
+
+```bash
+# Find your GitHub username
+gh api user --jq .login
+
+# Log into ghcr.io
+gh auth token | docker login ghcr.io -u <your-github-username> --password-stdin
+
+# Build from repo root (takes a few minutes)
+docker build -t ghcr.io/bertolikimberly/microsoft-ai-news-backend:latest -f backend/Dockerfile .
+
+# Push
+docker push ghcr.io/bertolikimberly/microsoft-ai-news-backend:latest
+
+# Tell Azure to use the new image
+az containerapp update \
+  --name mainews-api \
+  --resource-group mai-news-rg \
+  --subscription 98947069-b86f-4a38-a42d-43af815debd3 \
+  --image ghcr.io/bertolikimberly/microsoft-ai-news-backend:latest
+```
+
+> Note: `docker push` requires write access to the `bertolikimberly` GitHub packages. If it fails with a permission error, the teammate who originally deployed needs to do this step.
 
 ---
 
-### Step 6 — Test the cron workflows manually
+### Step 3 — Test the cron workflows
 
-Once the deploy is done:
+```bash
+# Trigger ingest first and watch the logs
+gh workflow run ingest-cron.yml
+gh run watch
 
-1. GitHub repo → **Actions** tab
-2. Left sidebar → **Run ingest pipeline** → **Run workflow** → **Run workflow** (green button)
-   - Watch the logs — it should POST to `/internal/run-ingest` and return a JSON summary
-3. Left sidebar → **Run digest worker** → **Run workflow** → **Run workflow**
-   - Watch the logs — it should POST to `/internal/run-digest-worker`
-   - Check your email (the one in the database) for a test digest
+# Then trigger digest and watch the logs
+gh workflow run digest-cron.yml
+gh run watch
+```
 
-If both workflows show a green checkmark, everything is live and working.
+Both should show a green checkmark. The digest run should also produce an email to any user in the database who has a digest scheduled.

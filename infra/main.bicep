@@ -94,7 +94,7 @@ var containerAppName = '${projectName}-api'
 var frontendStorageAccountName = toLower('${take(projectName, 8)}web${uniqueSuffix}')
 var logAnalyticsName = '${projectName}-logs'
 var emailServiceName = '${projectName}-email'
-var communicationServiceName = '${projectName}-comms'
+var communicationServiceName = 'mainews-comms2026' // manually created; mainews-comms was globally reserved
 
 // ─── Log Analytics (Container Apps needs a workspace) ────────────────
 
