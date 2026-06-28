@@ -101,38 +101,21 @@ Decisions made and work needed to resolve inconsistencies in the backend.
 
 ## Remaining Steps to Go Live
 
-Do these in order.
-
 ---
 
-### Step 1 — Merge tier3 into main
-
-```bash
-git checkout main
-git merge tier3
-git push origin main
-```
+### Step 1 — Merge tier3 into main ✅ DONE
+Merged via PR on GitHub.
 
 ---
 
 ### Step 2 — Rebuild and redeploy the backend
-
 CI/CD is blocked (needs Azure service principal with tenant admin rights). Do it manually:
 
 ```bash
-# Find your GitHub username
 gh api user --jq .login
-
-# Log into ghcr.io
 gh auth token | docker login ghcr.io -u <your-github-username> --password-stdin
-
-# Build from repo root (takes a few minutes)
 docker build -t ghcr.io/bertolikimberly/microsoft-ai-news-backend:latest -f backend/Dockerfile .
-
-# Push
 docker push ghcr.io/bertolikimberly/microsoft-ai-news-backend:latest
-
-# Tell Azure to use the new image
 az containerapp update \
   --name mainews-api \
   --resource-group mai-news-rg \
@@ -140,20 +123,29 @@ az containerapp update \
   --image ghcr.io/bertolikimberly/microsoft-ai-news-backend:latest
 ```
 
-> Note: `docker push` requires write access to the `bertolikimberly` GitHub packages. If it fails with a permission error, the teammate who originally deployed needs to do this step.
+> Note: `docker push` requires write access to the `bertolikimberly` GitHub packages. If it fails, the teammate who originally deployed needs to do this step.
+
+> Status: skipped for now — both cron workflows are passing and ACS confirmed sending (emailed:1, failed:0), so the current live image appears to have the required packages.
 
 ---
 
-### Step 3 — Test the cron workflows
+### Step 3 — Test cron workflows ✅ DONE
+Both workflows pass:
+- `ingest-cron.yml` — green, articles fetched and indexed
+- `digest-cron.yml` — green, `{"status":"ok","eligible_users":1,"generated":1,"emailed":1,"failed":0}`
 
-```bash
-# Trigger ingest first and watch the logs
-gh workflow run ingest-cron.yml
-gh run watch
+---
 
-# Then trigger digest and watch the logs
-gh workflow run digest-cron.yml
-gh run watch
-```
+### Step 4 — Confirm email lands in a real inbox ✅ DONE
 
-Both should show a green checkmark. The digest run should also produce an email to any user in the database who has a digest scheduled.
+Email confirmed delivered to real Gmail inbox on 2026-06-28.
+Subject: "Your digest — Sun 28 Jun (1 story)"
+Sent from: DoNotReply@<domain>.azurecomm.net via ACS.
+
+ACS → digest worker → cron scheduler all confirmed working end-to-end.
+
+---
+
+## Tier 3 Complete ✅
+
+All decisions made, all infrastructure live, email delivery confirmed.
