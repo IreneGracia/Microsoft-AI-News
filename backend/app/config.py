@@ -112,17 +112,9 @@ class Settings(BaseSettings):
 
     # ─── Email (Azure Communication Services) ─────────────────────────────
     # Connection string + sender address come from the
-    # Microsoft.Communication/communicationServices resource (Bicep) and
-    # its Azure Managed Domain. The Azure Managed Domain provisions a
-    # `DoNotReply@<random>.azurecomm.net` sender automatically — switch to
-    # a custom-verified domain later for branded mail.
+    # Microsoft.Communication/communicationServices resource (Bicep).
     acs_connection_string: str = ""
     acs_sender_address: str = ""
-
-    # Legacy Resend settings (now unused — kept so existing .env files
-    # don't fail validation; safe to delete once everything is on ACS).
-    resend_api_key: str = ""
-    resend_from: str = "Tech Intel News <noreply@example.com>"
 
     # ─── Internal worker auth ─────────────────────────────────────────────
     # Shared secret used to authenticate calls to /api/v1/internal/*

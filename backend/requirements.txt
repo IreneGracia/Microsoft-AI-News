@@ -36,11 +36,12 @@ httpx==0.27.2
 # Used by the digest worker (summarization) and chat service (RAG).
 openai==1.54.4
 
-# Transactional email via Resend.
-# Used by the digest worker to send digests + magic links / verification.
-resend==2.4.0
+# Transactional email via Azure Communication Services.
+# Used by the digest worker to send digests.
+azure-communication-email==1.0.0
 
 # ──────────────────────────────────────────────────────────────────────────
+
 # LLM pipeline deps — pulled in transitively when the digest worker imports
 # the sibling `llm_engineering/` package via app.integrations.bootstrap.
 # Versions track llm_engineering/requirements.txt; keep the two in sync.

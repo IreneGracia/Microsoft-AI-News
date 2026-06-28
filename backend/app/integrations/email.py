@@ -1,22 +1,17 @@
 """
 Email delivery via Azure Communication Services (ACS).
 
-Switched from Resend to keep the whole stack on Azure for the IE student
-subscription deploy — one bill, one dashboard, one Bicep file.
-
-Configuration:
+Configuration (backend/.env):
   ACS_CONNECTION_STRING — primary connection string from the
-      Microsoft.Communication/communicationServices resource. Retrieve
-      with `az communication list-key`.
-  ACS_SENDER_ADDRESS    — full from-address, e.g.
+      Microsoft.Communication/communicationServices resource.
+      Retrieve with `az communication list-key`.
+  ACS_SENDER_ADDRESS   — full from-address, e.g.
       DoNotReply@<random>.azurecomm.net for the Azure Managed Domain.
-      The "DoNotReply" local-part is required for Azure-managed domains;
-      custom domains can use anything.
 
 Failure handling: a missing connection string, a misconfigured sender,
 or an ACS API error is logged and returns False — the worker keeps going
-for other users instead of crashing the whole run. Don't let email be a
-hard dependency for digest generation.
+for other users instead of crashing the whole run. Email is never a hard
+dependency for digest generation.
 """
 
 from __future__ import annotations
@@ -41,11 +36,8 @@ def send_digest(
     html: str,
 ) -> bool:
     """
-    Send one transactional email. Returns True on accepted send, False on any
-    failure. Never raises — the caller's only job is to react to True/False.
-
-    `to_email` is the user's primary email; `subject` is the user-facing
-    subject line; `html` is the fully rendered digest body.
+    Send one transactional email via ACS. Returns True on success,
+    False on any failure. Never raises.
     """
     if not is_configured():
         log.info(
@@ -56,9 +48,7 @@ def send_digest(
         return False
 
     try:
-        # Import lazily so the absence of azure-communication-email only
-        # matters when sending, not at every import of the worker.
-        from azure.communication.email import EmailClient  # type: ignore[import-not-found]
+        from azure.communication.email import EmailClient
     except ImportError:
         log.error(
             "email.send_digest: `azure-communication-email` not installed; "
@@ -84,21 +74,12 @@ def send_digest(
     }
 
     try:
-        # begin_send returns a long-running-operation poller. We block on
-        # the result so the caller sees True/False per send; ACS sends are
-        # fast enough (sub-second typical) that this is fine for the
-        # digest worker's serial loop.
         poller = client.begin_send(message)
         result = poller.result()
     except Exception as exc:
-        # Catch broad — ACS errors come in several shapes (auth,
-        # validation, throttling). We want one uniform failure path.
-        log.warning(
-            "email.send_digest: ACS send failed for %s: %s", to_email, exc
-        )
+        log.warning("email.send_digest: ACS send failed for %s: %s", to_email, exc)
         return False
 
-    # ACS returns {"id": "...", "status": "Succeeded"} on success.
     status = result.get("status") if isinstance(result, dict) else getattr(result, "status", None)
     msg_id = result.get("id") if isinstance(result, dict) else getattr(result, "id", None)
 
