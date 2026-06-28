@@ -92,3 +92,24 @@ Decisions made and work needed to resolve inconsistencies in the backend.
 - [ ] Set repo secret `BACKEND_URL` in GitHub → Settings → Secrets → Actions
 - [ ] Set repo secret `WORKER_SHARED_SECRET` in GitHub → Settings → Secrets → Actions
 - [ ] Test both workflows manually via `workflow_dispatch` before relying on the schedule
+
+---
+
+## Manual Steps Before Going Live
+
+These require action outside the codebase — no code changes needed.
+
+### Resend (Task 4)
+- [ ] Sign up at https://resend.com (free, no card required)
+- [ ] Add and verify a sending domain, or use `onboarding@resend.dev` for testing (own address only)
+- [ ] API Keys → Create API Key → copy the value
+- [ ] Set `RESEND_API_KEY` in Azure Container Apps environment (Portal → Container App → Environment variables)
+- [ ] Set `RESEND_FROM` to a verified sender, e.g. `MAI News <digest@yourdomain.com>`
+
+### GitHub Actions (Task 8)
+- [ ] Go to GitHub repo → Settings → Secrets and variables → Actions → New repository secret
+- [ ] Add `BACKEND_URL` — your Azure Container Apps URL (e.g. `https://your-app.azurecontainerapps.io`)
+- [ ] Add `WORKER_SHARED_SECRET` — same value as `WORKER_SHARED_SECRET` in `backend/.env`
+- [ ] Delete `.github/workflows/digest-cron.yml.disabled`
+- [ ] Test digest cron: Actions tab → "Run digest worker" → Run workflow
+- [ ] Test ingest cron: Actions tab → "Run ingest pipeline" → Run workflow
