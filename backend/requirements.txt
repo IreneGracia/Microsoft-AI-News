@@ -41,6 +41,7 @@ openai==1.54.4
 azure-communication-email==1.0.0
 
 # ──────────────────────────────────────────────────────────────────────────
+
 # LLM pipeline deps — pulled in transitively when the digest worker imports
 # the sibling `llm_engineering/` package via app.integrations.bootstrap.
 # Versions track llm_engineering/requirements.txt; keep the two in sync.
