@@ -53,6 +53,9 @@ structlog>=24.0.0
 # ── Embeddings + vector search ────────────────────────────────────────────
 # pgvector: Vector column type + cosine distance ops for pgvector in Postgres.
 # sentence-transformers: local all-MiniLM-L6-v2 (384-dim, no API key needed).
+# torch: CPU-only wheel to avoid downloading the ~2GB CUDA build.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1+cpu
 pgvector>=0.3.6
 sentence-transformers>=3.4.0
 
