@@ -9,7 +9,7 @@ added as those features are built out.
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -127,5 +127,11 @@ class Preferences(Base):
     # Validated against zoneinfo at the schema layer; defaults to UTC so a
     # user who never sets one still gets a deterministic delivery time.
     timezone: Mapped[str] = mapped_column(String, default="UTC")
+
+    # Explicit opt-in for email newsletters. False by default — the digest
+    # worker skips users who haven't consented. GDPR Art. 7 requires consent
+    # to be freely given, specific, informed, and unambiguous. Nullable so
+    # existing DB rows (NULL) are treated as no-consent without a migration.
+    newsletter_consent: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=False)
 
     user: Mapped["User"] = relationship(back_populates="preferences")

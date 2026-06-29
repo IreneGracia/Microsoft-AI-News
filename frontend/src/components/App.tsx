@@ -83,6 +83,7 @@ function _apiArticleToCard(a: ApiArticle): NewsCard {
     blurb: a.extract ?? '',
     tone: 'calm',
     tag: a.source,
+    image_url: a.image_url,
   }
 }
 
@@ -378,6 +379,7 @@ export default function App() {
                   blurb: '',
                   tone: j === 0 ? 'lead' as const : 'calm' as const,
                   tag: c.source,
+                  image_url: (c as { image_url?: string | null }).image_url,
                 }))
               : undefined,
           })))
@@ -455,6 +457,7 @@ export default function App() {
               blurb: '',
               tone: (i === 0 && sliced.length !== 2) ? 'lead' as const : 'calm' as const,
               tag: c.source,
+              image_url: c.image_url,
             }))
           : undefined
         setMessages((m) => m.map((msg) => msg.id === thinkingId
@@ -594,7 +597,7 @@ export default function App() {
           </div>
         </header>
 
-        <section className="canvas" ref={scrollRef}>
+        <section className={`canvas${currentView === 'dashboard' ? ' canvas--dashboard' : ''}`} ref={scrollRef}>
           {currentView === 'dashboard' ? (
             <DashboardView palette={palette} displayFont={tw.displayFont}
               userTopics={prefs.topics}

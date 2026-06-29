@@ -59,6 +59,7 @@ class Article(BaseModel):
     regulation_tags: list[str] = Field(default_factory=list)
     regions: list[str] = Field(default_factory=list)
 
+    image_url: Optional[str] = None           # first image extracted from RSS entry
     source_type: str = "secondary"   # "primary" | "secondary" | "aggregator"
     relevance_score: float = 0.0
     original_language: Optional[str] = None  # ISO 639-1 code detected at ingest time

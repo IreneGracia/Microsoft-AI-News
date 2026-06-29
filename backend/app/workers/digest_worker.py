@@ -152,6 +152,8 @@ def _find_eligible_users(db: Session) -> list[User]:
         prefs = user.preferences
         if prefs is None:
             continue
+        if not prefs.newsletter_consent:
+            continue
         if user.id in recent_user_ids:
             continue
 

@@ -60,6 +60,7 @@ class ArticleOut(BaseModel):
     published_at: datetime
     author: str | None = None
     extract: str | None = None
+    image_url: str | None = None
     # Convenience: the `topic` dimension only (kept for existing callers).
     topics: list[str] = []
     # Full multi-dimensional tagging: {dimension: [slug, ...]}. Dimensions

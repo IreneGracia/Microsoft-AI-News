@@ -150,6 +150,9 @@ class ArticleVectorStore:
             if article.content and not existing.body:
                 existing.body = article.content
                 changed = True
+            if article.image_url and not existing.image_url:
+                existing.image_url = article.image_url
+                changed = True
             return changed
 
         source_id = self._resolve_source_id(db, article.source)
@@ -162,6 +165,7 @@ class ArticleVectorStore:
             published_at=_to_aware_utc(article.published_at),
             extract=article.summary or (article.content[:280] if article.content else None),
             body=article.content,
+            image_url=article.image_url,
             embedding=embedding,
             original_language=article.original_language,
         )
@@ -221,6 +225,7 @@ def _orm_to_pipeline(row: ArticleORM) -> PipelineArticle:
         published_at=row.published_at,
         content=row.body or row.extract or "",
         summary=row.extract,
+        image_url=row.image_url,
         topic_tags=by_dim.get("topic", []),
         business_tags=by_dim.get("business", []),
         regulation_tags=by_dim.get("regulation_policy", []),

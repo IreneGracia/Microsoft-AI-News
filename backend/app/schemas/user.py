@@ -52,6 +52,9 @@ class PreferencesIn(BaseModel):
     # so every user receives at 08:00 (or whatever hour they pick) in their
     # own wall clock. Validated against zoneinfo; bad strings 422.
     timezone: str = "UTC"
+    # Explicit consent to receive email newsletters. Must be True for the
+    # digest worker to send emails to this user.
+    newsletter_consent: bool = False
 
     @field_validator("timezone")
     @classmethod

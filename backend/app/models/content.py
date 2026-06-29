@@ -127,6 +127,7 @@ class Article(Base):
     # Full cleaned article text — used for embedding + LLM summarisation.
     body: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    image_url: Mapped[str | None] = mapped_column(String, nullable=True)
     rss_feed_url: Mapped[str | None] = mapped_column(String, nullable=True)
     content_hash: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
     original_language: Mapped[str | None] = mapped_column(String, nullable=True)

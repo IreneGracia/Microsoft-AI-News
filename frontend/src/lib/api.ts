@@ -132,6 +132,7 @@ export interface SseCitation {
   source: string
   url: string
   published_at: string
+  image_url?: string | null
 }
 
 export async function streamMessage(
@@ -210,6 +211,7 @@ export interface ApiPreferences {
   tone: 'technical' | 'business' | 'executive'
   language: string
   timezone?: string
+  newsletter_consent: boolean
 }
 
 export async function getPreferences(): Promise<ApiPreferences> {
@@ -244,6 +246,7 @@ export interface ApiArticle {
   published_at: string
   author: string | null
   extract: string | null
+  image_url: string | null
   topics: string[]
 }
 

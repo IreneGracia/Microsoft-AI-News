@@ -1,10 +1,11 @@
 """
 Auth endpoints — /api/v1/auth/*.
 
-OAuth (Google):
-  - /login           → start the OAuth flow (302 to Google).
-  - /callback        → exchange the code, provision the user, redirect to
-                       the frontend with our JWT in the URL fragment.
+OAuth (Google + Microsoft):
+  - /login?provider=google|microsoft  → start the OAuth flow (302 to provider).
+  - /callback                         → exchange the code, provision the user,
+                                        redirect to the frontend with our JWT
+                                        in the URL fragment.
 
 Magic link (email-based, any provider):
   - /email/request-login  → POST {email}. Sends a one-time login link via
@@ -19,26 +20,24 @@ Shared:
                  frontend forgetting the token.
   - /dev-login → dev-only shortcut: mints a JWT for a fixed test user.
 
-The Google variant exists so users with a Google account can sign in
-without typing an email and waiting for an inbox round-trip. The email
-variant exists so anyone with a working email address — Microsoft,
-custom domain, Yahoo, etc. — can also sign in. The two flows produce
-identical session JWTs and provision identical User rows, so frontend
-code doesn't have to care which one was used.
+All three flows produce identical session JWTs and provision identical User
+rows, so frontend code doesn't have to care which one was used.
 """
 
 import json
 import logging
 import secrets
 
-from fastapi import APIRouter, Body, Cookie, Depends, Response, status
+from fastapi import APIRouter, Body, Cookie, Depends, Query, Response, status
 
 log = logging.getLogger(__name__)
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
-from app.auth import email_link, google as oauth
+from app.auth import email_link
+from app.auth import google as google_oauth
+from app.auth import entra as entra_oauth
 from app.auth.jwt import mint as mint_jwt
 from app.config import settings
 from app.deps import get_db
@@ -72,11 +71,12 @@ def _default_preferences() -> Preferences:
     return p
 
 
-# Cookies that carry state + PKCE verifier across the Entra roundtrip.
+# Cookies that carry state + PKCE verifier + chosen provider across the OAuth roundtrip.
 # HttpOnly so JS can't read them; SameSite=Lax so they're sent back on the
-# top-level redirect from login.microsoftonline.com.
+# top-level redirect from accounts.google.com or login.microsoftonline.com.
 _STATE_COOKIE = "oauth_state"
 _VERIFIER_COOKIE = "oauth_verifier"
+_PROVIDER_COOKIE = "oauth_provider"
 _OAUTH_COOKIE_MAX_AGE = 600  # 10 min — user has to finish the dance in this window
 
 
@@ -90,8 +90,7 @@ def _oauth_cookie_kwargs() -> dict:
     }
 
 
-# A fixed user we provision in dev so /dev-login is reproducible.
-# In the real Entra flow, the OID comes from the verified ID token.
+# Fixed users we provision in dev so /dev-login and mock OAuth are reproducible.
 _DEV_USER = {
     "entra_oid": "00000000-0000-0000-0000-000000000001",
     "entra_tid": "00000000-0000-0000-0000-000000000002",
@@ -99,19 +98,63 @@ _DEV_USER = {
     "display_name": "Joaquin Fernandez Sande",
 }
 
+_MOCK_MICROSOFT_USER = {
+    "entra_oid": "00000000-0000-0000-0000-000000000003",
+    "entra_tid": "common",
+    "email": "jfernandezsande@student.ie.edu",
+    "display_name": "Joaquin Fernandez Sande",
+}
+
 
 @router.get("/login")
-def login() -> RedirectResponse:
-    """Start the OAuth flow: stash state + PKCE verifier, 302 to Entra."""
+def login(provider: str = Query(default="google"), db: Session = Depends(get_db)) -> RedirectResponse:
+    """
+    Start an OAuth flow. `provider` selects the identity provider:
+      - "google"    → Google OAuth (needs GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET)
+      - "microsoft" → Microsoft Entra (needs ENTRA_TENANT_ID + ENTRA_CLIENT_ID + ENTRA_CLIENT_SECRET)
+                      In dev mode, falls back to a mock Microsoft user if Entra is not configured.
+    """
+    # Dev-mode mock for Microsoft: skip the real OAuth dance and mint a JWT directly.
+    if provider == "microsoft" and settings.is_dev and not settings.entra_client_id:
+        return _mock_microsoft_login(db)
+
+    oauth = entra_oauth if provider == "microsoft" else google_oauth
+
     state = oauth.generate_state()
     verifier, challenge = oauth.generate_pkce_pair()
-
-    authorize_url = oauth.build_authorize_url(state=state, code_challenge=challenge)
+    try:
+        authorize_url = oauth.build_authorize_url(state=state, code_challenge=challenge)
+    except RuntimeError as e:
+        raise problem(status=503, title="OAuth provider not configured", detail=str(e))
 
     response = RedirectResponse(url=authorize_url, status_code=302)
     response.set_cookie(_STATE_COOKIE, state, **_oauth_cookie_kwargs())
     response.set_cookie(_VERIFIER_COOKIE, verifier, **_oauth_cookie_kwargs())
+    response.set_cookie(_PROVIDER_COOKIE, provider, **_oauth_cookie_kwargs())
     return response
+
+
+def _mock_microsoft_login(db: Session) -> RedirectResponse:
+    """Dev-only: provision a mock Microsoft/Entra user and redirect with a real JWT."""
+    user = db.query(User).filter(User.entra_oid == _MOCK_MICROSOFT_USER["entra_oid"]).first()
+    if user is None:
+        user = User(
+            entra_oid=_MOCK_MICROSOFT_USER["entra_oid"],
+            entra_tid=_MOCK_MICROSOFT_USER["entra_tid"],
+            email=_MOCK_MICROSOFT_USER["email"],
+            display_name=_MOCK_MICROSOFT_USER["display_name"],
+            preferences=_default_preferences(),
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        seed_dev_demo(db, user)
+
+    token, _ = mint_jwt(user.id)
+    return RedirectResponse(
+        url=f"{settings.frontend_url}/#access_token={token}",
+        status_code=302,
+    )
 
 
 @router.get("/callback")
@@ -122,13 +165,16 @@ def callback(
     error_description: str | None = None,
     oauth_state: str | None = Cookie(default=None),
     oauth_verifier: str | None = Cookie(default=None),
+    oauth_provider: str | None = Cookie(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     """
-    OAuth redirect target. Verify state, exchange code, provision user,
-    mint our JWT, redirect the browser back to the frontend with the JWT
-    in the URL fragment (fragments aren't sent to the server, so the token
-    stays out of access logs).
+    Shared OAuth redirect target for both Google and Microsoft.
+    Reads the `oauth_provider` cookie set by /login to dispatch to the
+    correct exchange_code implementation. Verifies state, exchanges code,
+    provisions user, mints our JWT, and redirects to the frontend with
+    the JWT in the URL fragment (fragments aren't sent to servers, so the
+    token stays out of access logs).
     """
     if error:
         raise problem(
@@ -149,6 +195,9 @@ def callback(
     # Constant-time comparison so we don't leak timing on state-mismatch attacks.
     if not secrets.compare_digest(state, oauth_state):
         raise problem(status=400, title="State mismatch — possible CSRF")
+
+    provider = oauth_provider or "google"
+    oauth = entra_oauth if provider == "microsoft" else google_oauth
 
     try:
         identity = oauth.exchange_code(code=code, code_verifier=oauth_verifier)
@@ -176,6 +225,7 @@ def callback(
     )
     response.delete_cookie(_STATE_COOKIE, path="/api/v1/auth")
     response.delete_cookie(_VERIFIER_COOKIE, path="/api/v1/auth")
+    response.delete_cookie(_PROVIDER_COOKIE, path="/api/v1/auth")
     return response
 
 

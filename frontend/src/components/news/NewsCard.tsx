@@ -11,10 +11,18 @@ interface Props {
 export default function NewsCard({ card, palette, onAction }: Props) {
   return (
     <button className="nitem" onClick={() => onAction('read', card)} style={{ color: palette.ink }}>
-      <span className="nitem-meta" style={{ color: palette.muted }}>
-        {card.source} · {card.time}
+      {card.image_url && (
+        <span className="nitem-img-wrap">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={card.image_url} alt="" className="nitem-img" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+        </span>
+      )}
+      <span className="nitem-body">
+        <span className="nitem-meta" style={{ color: palette.muted }}>
+          {card.source} · {card.time}
+        </span>
+        <span className="nitem-title">{card.title}</span>
       </span>
-      <span className="nitem-title">{card.title}</span>
     </button>
   )
 }

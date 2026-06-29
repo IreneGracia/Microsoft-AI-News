@@ -95,6 +95,7 @@ def get_preferences(user: User = Depends(current_user)) -> PreferencesOut:
         tone=p.tone,
         language=p.language,
         timezone=p.timezone,
+        newsletter_consent=bool(p.newsletter_consent),
     )
 
 
@@ -127,6 +128,7 @@ def put_preferences(
     p.tone = body.tone
     p.language = body.language
     p.timezone = body.timezone
+    p.newsletter_consent = body.newsletter_consent
     db.commit()
     return body  # the same shape — echo back
 

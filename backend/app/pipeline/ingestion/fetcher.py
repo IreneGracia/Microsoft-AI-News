@@ -130,6 +130,54 @@ def _entry_to_text(entry: dict) -> str:
     return ""
 
 
+def _extract_image(entry: dict) -> Optional[str]:
+    """
+    Extract the best available thumbnail URL from a feedparser entry.
+    Tries media:thumbnail, media:content, enclosures, then the first
+    <img> tag found in the entry HTML. Returns None if nothing found.
+    """
+    # media:thumbnail — most common in modern feeds (YouTube, WordPress, etc.)
+    thumbnails = entry.get("media_thumbnail") or []
+    if thumbnails and isinstance(thumbnails, list):
+        url = thumbnails[0].get("url", "") if isinstance(thumbnails[0], dict) else ""
+        if url:
+            return url
+
+    # media:content with medium="image"
+    media_content = entry.get("media_content") or []
+    for mc in media_content:
+        if isinstance(mc, dict):
+            if mc.get("medium") == "image" or mc.get("type", "").startswith("image/"):
+                url = mc.get("url", "")
+                if url:
+                    return url
+
+    # <enclosure type="image/...">
+    for enc in entry.get("enclosures") or []:
+        if isinstance(enc, dict) and enc.get("type", "").startswith("image/"):
+            url = enc.get("url", "") or enc.get("href", "")
+            if url:
+                return url
+
+    # Parse first <img src> from entry HTML content
+    for field in ("content", "summary", "description"):
+        val = entry.get(field)
+        html_str = ""
+        if isinstance(val, list) and val:
+            html_str = val[0].get("value", "") if isinstance(val[0], dict) else ""
+        elif isinstance(val, str):
+            html_str = val
+        if html_str:
+            soup = BeautifulSoup(html_str, "html.parser")
+            img = soup.find("img")
+            if img and img.get("src"):
+                src = str(img["src"])
+                if src.startswith("http"):
+                    return src
+
+    return None
+
+
 def _is_arxiv_relevant(title: str, abstract: str) -> bool:
     text = f"{title} {abstract}".lower()
     return any(kw in text for kw in _ARXIV_KEYWORDS)
@@ -161,34 +209,64 @@ def _detect_and_translate(text: str, title: str = "") -> tuple[str, str]:
         return text, lang
 
 
+def _og_image_from_html(html_str: str) -> Optional[str]:
+    """Extract og:image / twitter:image from a downloaded HTML string."""
+    try:
+        soup = BeautifulSoup(html_str, "html.parser")
+        for attrs in (
+            {"property": "og:image"},
+            {"property": "og:image:url"},
+            {"name": "twitter:image"},
+            {"name": "twitter:image:src"},
+        ):
+            tag = soup.find("meta", attrs=attrs)
+            if tag:
+                content = str(tag.get("content", "") or "")
+                if content.startswith("http"):
+                    return content
+    except Exception:
+        pass
+    return None
+
+
 @retry(stop=stop_after_attempt(2), wait=wait_exponential(min=1, max=4))
-async def _fetch_full_body(url: str, timeout: float = 10.0) -> str:
+async def _fetch_body_and_image(url: str) -> tuple[str, Optional[str]]:
     """
-    Fetch and extract the main article text from a URL using trafilatura.
-    Trafilatura is specifically designed for news article extraction and handles
-    boilerplate removal (nav, ads, footers) far more reliably than BeautifulSoup
-    paragraph scraping.
+    Fetch article body text and og:image in one request. Used for short-content
+    articles that already need a full-page download.
     """
     try:
         loop = asyncio.get_event_loop()
         downloaded = await loop.run_in_executor(
             None,
-            lambda: trafilatura.fetch_url(
-                url,
-                config=trafilatura.settings.use_config(),
-            ),
+            lambda: trafilatura.fetch_url(url, config=trafilatura.settings.use_config()),
         )
         if not downloaded:
-            return ""
+            return "", None
         text = trafilatura.extract(
             downloaded,
             favor_recall=True,
             include_comments=False,
             include_tables=False,
         ) or ""
-        return text[:4000]
+        return text[:4000], _og_image_from_html(downloaded)
     except Exception:
-        return ""
+        return "", None
+
+
+async def _fetch_og_image(url: str) -> Optional[str]:
+    """Lightweight fetch — only extracts og:image, skips body extraction."""
+    try:
+        loop = asyncio.get_event_loop()
+        downloaded = await loop.run_in_executor(
+            None,
+            lambda: trafilatura.fetch_url(url, config=trafilatura.settings.use_config()),
+        )
+        if not downloaded:
+            return None
+        return _og_image_from_html(downloaded)
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -241,6 +319,7 @@ class RSSFetcher:
                 source=source.name,
                 published_at=published_at,
                 content=translated_content,
+                image_url=_extract_image(entry),
                 topic_tags=source.topic_tags,
                 business_tags=source.business_tags,
                 regulation_tags=source.regulation_tags,
@@ -254,15 +333,35 @@ class RSSFetcher:
                 full_fetch_tasks.append((len(articles) - 1, url))
 
         if full_fetch_tasks:
-            sem = asyncio.Semaphore(5)
+            sem = asyncio.Semaphore(8)
 
             async def bounded_fetch(idx: int, url: str):
                 async with sem:
-                    body = await _fetch_full_body(url)
+                    body, img = await _fetch_body_and_image(url)
                     if body:
                         articles[idx].content = body
+                    if img and not articles[idx].image_url:
+                        articles[idx].image_url = img
 
             await asyncio.gather(*[bounded_fetch(i, u) for i, u in full_fetch_tasks])
+
+        # Second pass: fetch og:image for articles that still have no image.
+        # Skip arXiv (academic, no images) and Hacker News comment pages.
+        is_arxiv = source.id.startswith("arxiv")
+        image_tasks = [
+            (i, a.url) for i, a in enumerate(articles)
+            if not a.image_url and not is_arxiv
+        ]
+        if image_tasks:
+            img_sem = asyncio.Semaphore(8)
+
+            async def bounded_img(idx: int, url: str):
+                async with img_sem:
+                    img = await _fetch_og_image(url)
+                    if img:
+                        articles[idx].image_url = img
+
+            await asyncio.gather(*[bounded_img(i, u) for i, u in image_tasks])
 
         return articles
 

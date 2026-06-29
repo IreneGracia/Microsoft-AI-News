@@ -3,7 +3,7 @@
     "version": "2.0",
     "created": "2026-05-28",
     "description": "Microsoft AI News - canonical source registry. Final 35 free sources, region-tagged, paywalled sources removed. Source of truth for both data_engineering and llm_engineering ingestion.",
-    "total_sources": 35,
+    "total_sources": 42,
     "tags_taxonomy": {
       "topic": [
         "Artificial Intelligence & ML",
@@ -978,6 +978,189 @@
       "default_business_tags": [],
       "default_regulation_tags": [],
       "notes": "NOT an RSS feed - GDELT DOC 2.0 API. Needs custom client, not feedparser. Covers regions with sparse English sources.",
+      "enabled": true
+    },
+    {
+      "id": "simonwillison",
+      "name": "Simon Willison's Weblog",
+      "homepage": "https://simonwillison.net",
+      "rss_url": "https://simonwillison.net/atom/everything/",
+      "category": "Dev Tooling",
+      "source_type": "secondary",
+      "region": [
+        "Global"
+      ],
+      "region_tags": [
+        "North America"
+      ],
+      "content_quality": "full",
+      "scrape_tier": "standard",
+      "scrape_interval_min": 360,
+      "default_topic_tags": [
+        "Artificial Intelligence & ML",
+        "Software Development"
+      ],
+      "default_business_tags": [],
+      "default_regulation_tags": [],
+      "notes": "Best individual coverage of LLM tools, Claude Code, and AI coding assistants. High signal-to-noise.",
+      "enabled": true
+    },
+    {
+      "id": "pragmatic_engineer",
+      "name": "The Pragmatic Engineer",
+      "homepage": "https://newsletter.pragmaticengineer.com",
+      "rss_url": "https://newsletter.pragmaticengineer.com/feed",
+      "category": "Engineering",
+      "source_type": "secondary",
+      "region": [
+        "Global"
+      ],
+      "region_tags": [
+        "North America",
+        "Europe"
+      ],
+      "content_quality": "full",
+      "scrape_tier": "standard",
+      "scrape_interval_min": 360,
+      "default_topic_tags": [
+        "Software Development",
+        "Artificial Intelligence & ML"
+      ],
+      "default_business_tags": [
+        "Big Tech (FAANG+Microsoft)",
+        "Layoffs & Hiring"
+      ],
+      "default_regulation_tags": [],
+      "notes": "Top engineering newsletter. Covers AI coding tools, big tech eng culture, and developer ecosystem in depth.",
+      "enabled": true
+    },
+    {
+      "id": "stackoverflow_blog",
+      "name": "Stack Overflow Blog",
+      "homepage": "https://stackoverflow.blog",
+      "rss_url": "https://stackoverflow.blog/feed/",
+      "category": "Dev Tooling",
+      "source_type": "secondary",
+      "region": [
+        "Global"
+      ],
+      "region_tags": [
+        "North America"
+      ],
+      "content_quality": "full",
+      "scrape_tier": "standard",
+      "scrape_interval_min": 360,
+      "default_topic_tags": [
+        "Software Development",
+        "Artificial Intelligence & ML"
+      ],
+      "default_business_tags": [],
+      "default_regulation_tags": [],
+      "notes": "Developer surveys, AI coding tools adoption data, and engineering best practices.",
+      "enabled": true
+    },
+    {
+      "id": "vscode_blog",
+      "name": "Visual Studio Code Blog",
+      "homepage": "https://code.visualstudio.com/blogs",
+      "rss_url": "https://code.visualstudio.com/feed.xml",
+      "category": "Dev Tooling",
+      "source_type": "primary",
+      "region": [
+        "Global"
+      ],
+      "region_tags": [
+        "North America"
+      ],
+      "content_quality": "full",
+      "scrape_tier": "daily",
+      "scrape_interval_min": 1440,
+      "default_topic_tags": [
+        "Software Development",
+        "Artificial Intelligence & ML"
+      ],
+      "default_business_tags": [
+        "Big Tech (FAANG+Microsoft)"
+      ],
+      "default_regulation_tags": [],
+      "notes": "Official VS Code release notes and feature announcements. Primary source for Copilot and Claude Code extension updates.",
+      "enabled": true
+    },
+    {
+      "id": "changelog",
+      "name": "Changelog News",
+      "homepage": "https://changelog.com/news",
+      "rss_url": "https://changelog.com/news/feed",
+      "category": "Dev Tooling",
+      "source_type": "secondary",
+      "region": [
+        "Global"
+      ],
+      "region_tags": [
+        "North America"
+      ],
+      "content_quality": "full",
+      "scrape_tier": "standard",
+      "scrape_interval_min": 360,
+      "default_topic_tags": [
+        "Software Development",
+        "Artificial Intelligence & ML"
+      ],
+      "default_business_tags": [
+        "Startups & Venture"
+      ],
+      "default_regulation_tags": [],
+      "notes": "Open source and developer tooling news. Good signal on new AI coding tools, CLIs, and infrastructure projects.",
+      "enabled": true
+    },
+    {
+      "id": "lobsters",
+      "name": "Lobsters",
+      "homepage": "https://lobste.rs",
+      "rss_url": "https://lobste.rs/rss",
+      "category": "Dev Tooling",
+      "source_type": "aggregator",
+      "region": [
+        "Global"
+      ],
+      "region_tags": [
+        "North America"
+      ],
+      "content_quality": "excerpts",
+      "scrape_tier": "standard",
+      "scrape_interval_min": 360,
+      "default_topic_tags": [
+        "Software Development",
+        "Artificial Intelligence & ML",
+        "Cybersecurity"
+      ],
+      "default_business_tags": [],
+      "default_regulation_tags": [],
+      "notes": "Developer-curated link aggregator. High-quality signal on dev tooling, AI coding, and systems programming.",
+      "enabled": true
+    },
+    {
+      "id": "bytes_dev",
+      "name": "Bytes.dev",
+      "homepage": "https://bytes.dev",
+      "rss_url": "https://bytes.dev/rss.xml",
+      "category": "Dev Tooling",
+      "source_type": "secondary",
+      "region": [
+        "Global"
+      ],
+      "region_tags": [
+        "North America"
+      ],
+      "content_quality": "full",
+      "scrape_tier": "standard",
+      "scrape_interval_min": 360,
+      "default_topic_tags": [
+        "Software Development"
+      ],
+      "default_business_tags": [],
+      "default_regulation_tags": [],
+      "notes": "JavaScript and frontend ecosystem newsletter. Covers JS/TS tooling, framework releases, and AI coding integrations.",
       "enabled": true
     }
   ]

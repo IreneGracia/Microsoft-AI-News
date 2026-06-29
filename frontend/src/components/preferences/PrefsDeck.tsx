@@ -59,6 +59,7 @@ export default function PrefsDeck({ open, onClose, palette, displayFont, newsFon
         frequency: apiFrequency,
         length: (prefs.depth as 'short' | 'standard' | 'deep') ?? 'standard',
         tone: (prefs.tone as 'technical' | 'business' | 'executive') ?? 'technical',
+        newsletter_consent: prefs.newsletterConsent ?? false,
       })
     } catch { /* best-effort — prefs live in local state even if API is down */ }
 
@@ -244,6 +245,44 @@ export default function PrefsDeck({ open, onClose, palette, displayFont, newsFon
                   <p className="prefs-keywords-hint" style={{ color: palette.muted }}>Comma-separated. I&apos;ll only ping you when these show up.</p>
                 </div>
               )}
+
+              {/* Newsletter consent — explicit opt-in required (GDPR Art. 7) */}
+              <button
+                type="button"
+                onClick={() => setPrefs({ ...prefs, newsletterConsent: !prefs.newsletterConsent })}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: '12px',
+                  marginTop: '20px', padding: '14px 16px', borderRadius: '12px',
+                  border: `1px solid ${prefs.newsletterConsent ? palette.ink : 'rgba(0,0,0,0.1)'}`,
+                  background: prefs.newsletterConsent ? palette.cardBg : 'rgba(255,253,247,0.35)',
+                  cursor: 'pointer', textAlign: 'left', width: '100%',
+                  transition: 'border-color 0.15s, background 0.15s',
+                }}
+              >
+                {/* Checkbox */}
+                <div style={{
+                  width: 18, height: 18, borderRadius: 5, flexShrink: 0, marginTop: 2,
+                  border: `1.5px solid ${prefs.newsletterConsent ? palette.ink : 'rgba(0,0,0,0.3)'}`,
+                  background: prefs.newsletterConsent ? palette.ink : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'background 0.15s, border-color 0.15s',
+                }}>
+                  {prefs.newsletterConsent && (
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 6l3 3 5-5" stroke={palette.bg} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </div>
+                <div>
+                  <div style={{ fontSize: '13.5px', fontWeight: 500, color: palette.ink, lineHeight: 1.3, marginBottom: 4 }}>
+                    Send me the email newsletter
+                  </div>
+                  <div style={{ fontSize: '12px', color: palette.muted, lineHeight: 1.5 }}>
+                    I agree to receive personalised news digests at the frequency I selected above.
+                    You can unsubscribe any time from your preferences. We never share your email.
+                  </div>
+                </div>
+              </button>
             </div>
           )}
 

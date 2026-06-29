@@ -14,6 +14,7 @@ interface Props {
 
 const TOPIC_LABELS: Record<string, string> = {
   artificial_intelligence_ml: 'AI & ML',
+  ai_tools_productivity: 'Dev Tools',
   software_development: 'Software',
   cloud_infrastructure: 'Cloud',
   hardware_chips: 'Hardware',
@@ -53,12 +54,14 @@ interface CardProps {
 
 function ArticleCard({ article, onAsk, palette, displayFont, variant }: CardProps) {
   const [hovered, setHovered] = useState(false)
+  const [imgError, setImgError] = useState(false)
   const isFeatured = variant === 'featured'
   const isSide = variant === 'side'
+  const hasImage = Boolean(article.image_url) && !imgError
 
   return (
     <div
-      className={`dash2-card${isFeatured ? ' dash2-card--featured' : ''}${isSide ? ' dash2-card--side' : ''}`}
+      className={`dash2-card${isFeatured ? ' dash2-card--featured' : ''}${isSide ? ' dash2-card--side' : ''}${hasImage ? ' dash2-card--has-img' : ''}`}
       style={{
         background: hovered ? palette.cardBg : 'rgba(255,253,247,0.38)',
         borderColor: hovered ? 'rgba(0,0,0,0.13)' : 'rgba(0,0,0,0.07)',
@@ -66,55 +69,73 @@ function ArticleCard({ article, onAsk, palette, displayFont, variant }: CardProp
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div className="dash2-card-head">
-        <span className="dash2-source" style={{ color: palette.accent }}>
-          {article.source.toUpperCase()}
-        </span>
-        <span className="dash2-time" style={{ color: palette.muted }}>
-          {article.published_at ? relativeTime(article.published_at) : ''}
-        </span>
-      </div>
-
-      <p
-        className={`dash2-card-title${isFeatured ? ' dash2-card-title--featured' : ''}${isSide ? ' dash2-card-title--side' : ''}`}
-        style={{ fontFamily: FONTS[displayFont], color: palette.ink }}
-      >
-        {article.title}
-      </p>
-
-      {article.extract && !isSide && (
-        <p
-          className={`dash2-card-extract${isFeatured ? ' dash2-card-extract--featured' : ''}`}
-          style={{ color: palette.muted }}
-        >
-          {article.extract}
-        </p>
-      )}
-
-      <div className="dash2-card-foot">
-        <div className="dash2-topics">
-          {article.topics.slice(0, isFeatured ? 3 : 2).map((t) => (
-            <span
-              key={t}
-              className="dash2-topic-pill"
-              style={{ background: 'rgba(0,0,0,0.055)', color: palette.muted }}
-            >
-              {labelForSlug(t)}
-            </span>
-          ))}
+      {/* Text content — always left/main column */}
+      <div className="dash2-card-body">
+        <div className="dash2-card-head">
+          <span className="dash2-source" style={{ color: palette.accent }}>
+            {article.source.toUpperCase()}
+          </span>
+          <span className="dash2-time" style={{ color: palette.muted }}>
+            {article.published_at ? relativeTime(article.published_at) : ''}
+          </span>
         </div>
 
-        <button
-          className="dash2-ask-btn"
-          onClick={() => onAsk(`Tell me more about: ${article.title}`)}
-          style={{
-            color: hovered ? palette.accent : 'transparent',
-            borderColor: hovered ? palette.accent : 'transparent',
-          }}
+        <a
+          href={article.url}
+          target="_blank"
+          rel="noreferrer"
+          className={`dash2-card-title${isFeatured ? ' dash2-card-title--featured' : ''}${isSide ? ' dash2-card-title--side' : ''}`}
+          style={{ fontFamily: FONTS[displayFont], color: palette.ink }}
         >
-          Ask MAI →
-        </button>
+          {article.title}
+        </a>
+
+        {article.extract && !isSide && (
+          <p
+            className={`dash2-card-extract${isFeatured ? ' dash2-card-extract--featured' : ''}`}
+            style={{ color: palette.muted }}
+          >
+            {article.extract}
+          </p>
+        )}
+
+        <div className="dash2-card-foot">
+          <div className="dash2-topics">
+            {article.topics.slice(0, isFeatured ? 3 : 2).map((t) => (
+              <span
+                key={t}
+                className="dash2-topic-pill"
+                style={{ background: 'rgba(0,0,0,0.055)', color: palette.muted }}
+              >
+                {labelForSlug(t)}
+              </span>
+            ))}
+          </div>
+          <button
+            className="dash2-ask-btn"
+            onClick={() => onAsk(`Tell me more about: ${article.title}`)}
+            style={{
+              color: hovered ? palette.accent : 'transparent',
+              borderColor: hovered ? palette.accent : 'transparent',
+            }}
+          >
+            Ask MAI →
+          </button>
+        </div>
       </div>
+
+      {/* Image panel — right side, ~30% width, bleeds to card edge */}
+      {hasImage && (
+        <div className="dash2-card-img-panel">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={article.image_url!}
+            alt=""
+            loading="lazy"
+            onError={() => setImgError(true)}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -153,12 +174,15 @@ export default function DashboardView({ palette, displayFont, userTopics, onAsk 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topicsKey])
 
-  const articles =
+  const tabFiltered =
     activeTab === 'all'
       ? allArticles
       : allArticles.filter((a) => a.topics.includes(activeTab))
 
-  // Derive tabs from all fetched articles
+  // Dashboard only shows articles that have an image
+  const articles = tabFiltered.filter((a) => a.image_url)
+
+  // Derive tabs from all fetched articles (include articles without images for counts)
   const topicCounts = allArticles.reduce<Record<string, number>>((acc, a) => {
     a.topics.forEach((t) => { acc[t] = (acc[t] ?? 0) + 1 })
     return acc
@@ -172,25 +196,18 @@ export default function DashboardView({ palette, displayFont, userTopics, onAsk 
     weekday: 'long', month: 'long', day: 'numeric',
   })
 
-  const [featured, ...rest] = articles
-  const sideCards = rest.slice(0, 4)
-  const gridCards = rest.slice(4)
+  const featured = articles[0]
+  const sideCards = articles.slice(1, 3)
+  const gridCards = articles.slice(3, 6)
 
   return (
     <div className="dash2-wrap">
       {/* Header */}
       <div className="dash2-header">
-        <div>
-          <p className="dash2-date" style={{ color: palette.muted }}>{dateStr}</p>
-          <h1 className="dash2-title" style={{ fontFamily: FONTS[displayFont], color: palette.ink }}>
-            Today&apos;s Intelligence
-          </h1>
-          {!loading && articles.length > 0 && (
-            <p className="dash2-count" style={{ color: palette.muted }}>
-              {articles.length} stories
-            </p>
-          )}
-        </div>
+        <p className="dash2-date" style={{ color: palette.muted }}>{dateStr}</p>
+        <h1 className="dash2-title" style={{ fontFamily: FONTS[displayFont], color: palette.ink }}>
+          Today&apos;s Intelligence
+        </h1>
       </div>
 
       {/* Topic tabs */}
@@ -237,20 +254,13 @@ export default function DashboardView({ palette, displayFont, userTopics, onAsk 
         </p>
       )}
 
-      {/* Content */}
+      {/* Content: 2-row bento — (featured + 2 side) then (3 equal) */}
       {!loading && featured && (
-        <>
-          {/* Bento hero */}
+        <div className="dash2-content">
           <div className="dash2-bento">
-            <ArticleCard
-              article={featured}
-              onAsk={onAsk}
-              palette={palette}
-              displayFont={displayFont}
-              variant="featured"
-            />
+            <ArticleCard article={featured} onAsk={onAsk} palette={palette} displayFont={displayFont} variant="featured" />
             {sideCards.length > 0 && (
-              <div className="dash2-side-grid">
+              <div className="dash2-side-col">
                 {sideCards.map((a) => (
                   <ArticleCard key={a.id} article={a} onAsk={onAsk} palette={palette} displayFont={displayFont} variant="side" />
                 ))}
@@ -258,18 +268,14 @@ export default function DashboardView({ palette, displayFont, userTopics, onAsk 
             )}
           </div>
 
-          {/* Grid of remaining articles */}
           {gridCards.length > 0 && (
-            <>
-              <div className="dash2-section-label" style={{ color: palette.muted }}>More stories</div>
-              <div className="dash2-grid">
-                {gridCards.map((a) => (
-                  <ArticleCard key={a.id} article={a} onAsk={onAsk} palette={palette} displayFont={displayFont} variant="grid" />
-                ))}
-              </div>
-            </>
+            <div className="dash2-grid">
+              {gridCards.map((a) => (
+                <ArticleCard key={a.id} article={a} onAsk={onAsk} palette={palette} displayFont={displayFont} variant="grid" />
+              ))}
+            </div>
           )}
-        </>
+        </div>
       )}
     </div>
   )

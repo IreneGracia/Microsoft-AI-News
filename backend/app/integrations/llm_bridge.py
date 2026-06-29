@@ -132,6 +132,7 @@ def _upsert_article(
         published_at=_to_aware_utc(pipeline_article.published_at),
         extract=pipeline_article.summary or (pipeline_article.content[:280] if pipeline_article.content else None),
         body=pipeline_article.content,
+        image_url=pipeline_article.image_url,
     )
     db.add(row)
     db.flush()
@@ -261,6 +262,7 @@ def chat_reply(
                     "source": row.source.name if row.source else "",
                     "url": row.url,
                     "published_at": row.published_at.isoformat() if row.published_at else None,
+                    "image_url": row.image_url,
                 }
             )
 
@@ -330,5 +332,6 @@ def _resolve_citations(db: Session, sources: list) -> list[dict]:
             "source": row.source.name if row.source else "",
             "url": row.url,
             "published_at": row.published_at.isoformat() if row.published_at else None,
+            "image_url": row.image_url,
         })
     return citations

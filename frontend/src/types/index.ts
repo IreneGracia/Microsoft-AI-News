@@ -50,6 +50,7 @@ export interface NewsCard {
   blurb: string
   tone: 'lead' | 'calm'
   tag: string
+  image_url?: string | null
 }
 
 export interface ChatMessage {
@@ -75,6 +76,7 @@ export interface Prefs {
   keywords?: string
   tone?: string
   energy?: number
+  newsletterConsent?: boolean
 }
 
 export interface Tweaks {

@@ -34,6 +34,7 @@ def _to_out(article: Article) -> ArticleOut:
         published_at=article.published_at,
         author=article.author,
         extract=article.extract,
+        image_url=article.image_url,
         topics=tags_by_dim.get("topic", []),
         tags=tags_by_dim,
     )
