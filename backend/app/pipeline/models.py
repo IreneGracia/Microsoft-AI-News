@@ -145,6 +145,7 @@ class TokenUsage(BaseModel):
 
     @property
     def estimated_cost_usd(self) -> float:
+        # NOTE: hardcodes Claude Sonnet 4.6 rates regardless of LLM_PROVIDER — cost estimates are only accurate when LLM_PROVIDER=anthropic
         # Sonnet 4.6 pricing (per million tokens)
         input_price = 3.00 / 1_000_000
         output_price = 15.00 / 1_000_000

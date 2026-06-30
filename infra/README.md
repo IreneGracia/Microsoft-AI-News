@@ -37,7 +37,7 @@ of Azure Container Registry (~$5/mo Basic tier).
 ```bash
 # 1. Log in and create the resource group.
 az login
-az group create --name mai-news-rg --location westeurope
+az group create --name mai-news-rg --location francecentral
 
 # 2. Generate a strong Postgres admin password.
 export PG_PWD=$(openssl rand -base64 24)

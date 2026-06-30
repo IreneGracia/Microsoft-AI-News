@@ -13,9 +13,9 @@ Ingests articles from 40+ curated RSS sources, deduplicates and indexes them wit
 | Frontend | Next.js 15 + React 19 + Tailwind (port 3000, static SPA export) |
 | Backend API | FastAPI + SQLAlchemy + pgvector (port 8000, Docker) |
 | Database | Postgres 16 + pgvector (`mai-news-postgres`) |
-| LLM | Anthropic Claude (`claude-sonnet-4-6`) by default; OpenAI GPT-4o available via `LLM_PROVIDER=openai` |
+| LLM | OpenAI GPT-4o by default; Anthropic Claude (`claude-sonnet-4-6`) and Gemini available via `LLM_PROVIDER` config switch |
 | Embeddings | `all-MiniLM-L6-v2` 384-dim via sentence-transformers |
-| Auth | Passwordless magic-link + `dev-login` shortcut for local dev <!-- TODO: confirm with team: Google OAuth vs Entra; ACS vs Resend/Sendgrid --> |
+| Auth | Passwordless magic-link + `dev-login` shortcut for local dev |
 | Deploy target | Docker locally · Azure Container Apps (backend) · Azure Storage static website (frontend) · `render.yaml` also present |
 
 ---
@@ -24,7 +24,7 @@ Ingests articles from 40+ curated RSS sources, deduplicates and indexes them wit
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - Node 20+
-- An Anthropic API key (default) **or** an OpenAI API key — see [Environment variables](#environment-variables)
+- An OpenAI API key (default) **or** an Anthropic API key — see [Environment variables](#environment-variables)
 
 ---
 
@@ -166,10 +166,10 @@ Postgres 16 + pgvector (port 5432, Docker)
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/v1/auth/login` | Start OAuth flow (302 to provider) <!-- TODO: confirm with team --> |
-| `GET` | `/api/v1/auth/callback` | OAuth redirect — mints JWT, redirects to frontend <!-- TODO: confirm with team --> |
-| `POST` | `/api/v1/auth/email/request-login` | Send magic-link to `{email}` <!-- TODO: confirm with team --> |
-| `GET` | `/api/v1/auth/email/verify` | Verify magic-link token, mint JWT <!-- TODO: confirm with team --> |
+| `GET` | `/api/v1/auth/login` | Start OAuth flow (302 to provider) |
+| `GET` | `/api/v1/auth/callback` | OAuth redirect — mints JWT, redirects to frontend |
+| `POST` | `/api/v1/auth/email/request-login` | Send magic-link to `{email}` |
+| `GET` | `/api/v1/auth/email/verify` | Verify magic-link token, mint JWT |
 | `POST` | `/api/v1/auth/logout` | Stateless logout (204; frontend discards token) |
 | `POST` | `/api/v1/auth/dev-login` | Dev-only — provisions `dev.user@microsoft.com`, returns JWT (no body) |
 | `GET` | `/api/v1/health/ready` | Readiness probe — checks DB reachability |
@@ -221,12 +221,12 @@ cp llm_engineering/.env.example llm_engineering/.env
 | `WORKER_SHARED_SECRET` | **blank** | **Must be set** — blank → `/internal/*` returns 503 |
 | `FRONTEND_URL` | `http://localhost:3000` | Auth callback redirect target |
 | `ALLOWED_ORIGINS` | blank | Prod only; comma-separated origins |
-| `ENTRA_TENANT_ID` | blank | <!-- TODO: confirm with team --> Leave blank; dev-login works without OAuth |
-| `ENTRA_CLIENT_ID` | blank | <!-- TODO: confirm with team --> |
-| `ENTRA_CLIENT_SECRET` | blank | <!-- TODO: confirm with team --> |
-| `ACS_CONNECTION_STRING` | blank | <!-- TODO: confirm with team --> Leave blank; emails skipped gracefully |
-| `ACS_SENDER_ADDRESS` | blank | <!-- TODO: confirm with team --> |
-| `RESEND_API_KEY` | blank | <!-- TODO: confirm with team --> Legacy fallback |
+| `ENTRA_TENANT_ID` | blank | Leave blank; dev-login works without OAuth |
+| `ENTRA_CLIENT_ID` | blank | Entra ID app registration client ID |
+| `ENTRA_CLIENT_SECRET` | blank | Entra ID app registration client secret |
+| `ACS_CONNECTION_STRING` | blank | Leave blank; emails skipped gracefully |
+| `ACS_SENDER_ADDRESS` | blank | ACS verified sender address |
+| `RESEND_API_KEY` | blank | Legacy fallback |
 
 ### `llm_engineering/.env`
 
