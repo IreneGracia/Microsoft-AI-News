@@ -140,11 +140,20 @@ def get_sources_for_user(user: UserProfile) -> list[Source]:
     Return sources whose tags overlap with the user's preferences along
     any of the four content dimensions, or primary AI/ML sources for
     users with the AI/ML topic interest (high-signal floor).
+
+    If the user has no tags at all across every dimension (e.g. they
+    finished onboarding without picking any topics), matching against an
+    empty set would return zero sources and produce a permanently empty
+    digest with no visible error. Fall back to the primary source set so
+    these users still get a newsletter instead of silence.
     """
     user_topics = set(user.topic_tags)
     user_business = set(user.business_tags)
     user_regulation = set(user.regulation_tags)
     user_regions = set(user.regions)
+
+    if not (user_topics or user_business or user_regulation or user_regions):
+        return [s for s in load_sources() if s.is_primary]
 
     relevant: list[Source] = []
     for source in load_sources():
