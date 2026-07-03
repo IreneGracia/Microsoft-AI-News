@@ -72,7 +72,7 @@ def run() -> dict:
     unique = deduplicator.deduplicate(all_articles)
     log.info("ingest_worker: %d unique articles after deduplication", len(unique))
 
-    curated = curator.curate(unique, top_n=50)
+    curated = curator.curate(unique, top_n=100, min_priority=4)
     log.info("ingest_worker: %d articles after LLM curation", len(curated))
 
     try:

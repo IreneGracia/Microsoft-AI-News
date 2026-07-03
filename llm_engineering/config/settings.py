@@ -20,8 +20,8 @@ class Settings(BaseSettings):
 
     # OpenAI
     openai_api_key: str = ""
-    openai_model: str = "gpt-4o"
-    openai_fast_model: str = "gpt-4o-mini"
+    openai_model: str = "gpt-5.4-nano"
+    openai_fast_model: str = "gpt-5.4-nano"
 
     # News retrieval
     tavily_api_key: str = ""

@@ -63,9 +63,21 @@ class ArticleVectorStore:
         top_k: int = 8,
         topic_filter: list[str] | None = None,
         tag_filter: list[tuple[str, str]] | None = None,
+        max_per_source: int = 3,
     ) -> list[tuple[PipelineArticle, float]]:
-        """Return (article, cosine_similarity) pairs, highest similarity first."""
+        """
+        Return (article, cosine_similarity) pairs, reranked for recency and
+        source diversity, highest-relevance first.
+
+        Pure cosine similarity tends to surface several near-duplicate
+        articles from whichever source published the most that day, and can
+        rank a semantically-close but stale article above a fresher one. So
+        we pull a wider candidate pool from pgvector, blend in a recency
+        boost, then cap how many articles any single source contributes
+        before truncating to top_k.
+        """
         query_embedding = self._encode([query])[0]
+        candidate_pool = max(top_k * 4, 40)
 
         pairs: list[tuple[str, str]] = list(tag_filter or [])
         if topic_filter:
@@ -95,14 +107,18 @@ class ArticleVectorStore:
                 ]
                 stmt = stmt.where(ArticleORM.id.in_(union(*clauses)))
 
-            stmt = stmt.order_by("distance").limit(top_k)
+            stmt = stmt.order_by("distance").limit(candidate_pool)
 
-            results: list[tuple[PipelineArticle, float]] = []
+            candidates: list[tuple[ArticleORM, float, str]] = []
             for row, distance in db.execute(stmt).all():
                 similarity = round(1.0 - float(distance), 4)
-                results.append((_orm_to_pipeline(row), similarity))
+                source_key = row.source.name if row.source else (row.source_id or "unknown")
+                candidates.append((row, similarity, source_key))
 
-        return results
+            ranked = _rerank_by_recency(candidates)
+            diversified = _diversify_by_source(ranked, max_per_source=max_per_source)[:top_k]
+
+            return [(_orm_to_pipeline(row), similarity) for row, similarity in diversified]
 
     # ------------------------------------------------------------------
     # Helpers
@@ -205,6 +221,44 @@ class ArticleVectorStore:
     @staticmethod
     def _load_valid_tag_set(db) -> set[tuple[str, str]]:
         return {(t.dimension, t.slug) for t in db.query(Tag.dimension, Tag.slug).all()}
+
+
+def _recency_boost(published_at: datetime | None) -> float:
+    """0..1 — full boost within the last 24h, decayed to 0 by 7 days out."""
+    if published_at is None:
+        return 0.0
+    now = datetime.now(timezone.utc)
+    pub = published_at if published_at.tzinfo else published_at.replace(tzinfo=timezone.utc)
+    age_hours = (now - pub).total_seconds() / 3600
+    return max(0.0, 1.0 - (age_hours / 168.0))
+
+
+def _rerank_by_recency(
+    candidates: list[tuple[ArticleORM, float, str]],
+) -> list[tuple[ArticleORM, float, str]]:
+    """Blend cosine similarity with a recency boost; similarity stays the
+    dominant signal so relevance never loses to freshness."""
+    def blended(item: tuple[ArticleORM, float, str]) -> float:
+        row, similarity, _ = item
+        return 0.8 * similarity + 0.2 * _recency_boost(row.published_at)
+
+    return sorted(candidates, key=blended, reverse=True)
+
+
+def _diversify_by_source(
+    candidates: list[tuple[ArticleORM, float, str]],
+    max_per_source: int,
+) -> list[tuple[ArticleORM, float]]:
+    """Drop candidates once a source has already contributed max_per_source
+    articles, preserving the blended-score order otherwise."""
+    per_source: dict[str, int] = {}
+    result: list[tuple[ArticleORM, float]] = []
+    for row, similarity, source_key in candidates:
+        if per_source.get(source_key, 0) >= max_per_source:
+            continue
+        per_source[source_key] = per_source.get(source_key, 0) + 1
+        result.append((row, similarity))
+    return result
 
 
 def _to_aware_utc(dt: datetime) -> datetime:

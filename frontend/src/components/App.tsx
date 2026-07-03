@@ -170,6 +170,9 @@ export default function App() {
   const sessionMap = useRef<Map<string, string>>(new Map())
   // When true, next send() will always start a fresh general session regardless of current state
   const freshChatRef = useRef(false)
+  // Tracks article id -> session id for "Ask MAI" clicks, so a second click on the
+  // same article routes back to its existing chat instead of re-asking the LLM.
+  const articleThreadMap = useRef<Map<string, string>>(new Map())
 
   const addGeneralThread = () => {
     // Don't create a session or add to Recents yet — wait for the first message
@@ -183,6 +186,9 @@ export default function App() {
     const sessionId = sessionMap.current.get(threadId)
     if (sessionId) {
       sessionMap.current.delete(threadId)
+      for (const [articleId, sid] of articleThreadMap.current) {
+        if (sid === sessionId) articleThreadMap.current.delete(articleId)
+      }
       await deleteSession(sessionId).catch(() => {/* best-effort */})
     }
   }
@@ -388,7 +394,7 @@ export default function App() {
     }
   }
 
-  const send = async (overrideText?: string) => {
+  const send = async (overrideText?: string, articleId?: string) => {
     const text = (overrideText ?? input).trim()
     if (!text || busy) return
     setCurrentView('chat')
@@ -416,6 +422,7 @@ export default function App() {
         const session = await createSession(text.slice(0, 80))
         sessionId = session.id
         sessionMap.current.set(session.id, session.id)
+        if (articleId) articleThreadMap.current.set(articleId, session.id)
         // First message in a general chat: register in Recents now
         if (effectiveFolderId === null) {
           setGeneralThreads((ts) => [
@@ -601,7 +608,17 @@ export default function App() {
           {currentView === 'dashboard' ? (
             <DashboardView palette={palette} displayFont={tw.displayFont}
               userTopics={prefs.topics}
-              onAsk={(q) => { freshChatRef.current = true; setMessages([]); send(q) }} />
+              onAsk={(articleId, q) => {
+                const existingSessionId = articleThreadMap.current.get(articleId)
+                if (existingSessionId) {
+                  setCurrentView('chat')
+                  handleSelectThread(null, existingSessionId)
+                  return
+                }
+                freshChatRef.current = true
+                setMessages([])
+                send(q, articleId)
+              }} />
           ) : currentView === 'saved' ? (
             <SavedView palette={palette} displayFont={tw.displayFont}
               savedArticles={savedArticles} savedIds={savedArticleIds}

@@ -9,7 +9,7 @@ interface Props {
   palette: Palette
   displayFont: string
   userTopics?: string[]
-  onAsk: (q: string) => void
+  onAsk: (articleId: string, q: string) => void
 }
 
 const TOPIC_LABELS: Record<string, string> = {
@@ -46,7 +46,7 @@ function relativeTime(isoStr: string): string {
 
 interface CardProps {
   article: ApiArticle
-  onAsk: (q: string) => void
+  onAsk: (articleId: string, q: string) => void
   palette: Palette
   displayFont: string
   variant: 'featured' | 'side' | 'grid'
@@ -113,7 +113,7 @@ function ArticleCard({ article, onAsk, palette, displayFont, variant }: CardProp
           </div>
           <button
             className="dash2-ask-btn"
-            onClick={() => onAsk(`Tell me more about: ${article.title}`)}
+            onClick={() => onAsk(article.id, `Tell me more about: ${article.title}`)}
             style={{
               color: hovered ? palette.accent : 'transparent',
               borderColor: hovered ? palette.accent : 'transparent',
