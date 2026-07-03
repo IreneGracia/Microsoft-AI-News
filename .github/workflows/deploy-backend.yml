@@ -20,12 +20,9 @@ name: Build & deploy backend to Azure Container Apps
 #     --image ghcr.io/<owner>/<repo>-backend:<sha>
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - 'sources.json'
-      - '.github/workflows/deploy-backend.yml'
+  # Auto-deploy on push is disabled until an Azure service principal is
+  # available (AZURE_CREDENTIALS) — see docs/deployment-runbook.md.
+  # Deploys are manual for now: trigger via workflow_dispatch.
   workflow_dispatch:
 
 permissions:

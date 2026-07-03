@@ -17,11 +17,9 @@ name: Build & deploy frontend to Azure Storage static website
 #                             e.g. https://mainews-api.<env>.azurecontainerapps.io/api/v1
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/deploy-frontend.yml'
+  # Auto-deploy on push is disabled until an Azure service principal is
+  # available (AZURE_CREDENTIALS) — see docs/deployment-runbook.md.
+  # Deploys are manual for now: trigger via workflow_dispatch.
   workflow_dispatch:
 
 jobs:

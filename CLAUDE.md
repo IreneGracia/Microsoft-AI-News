@@ -193,8 +193,7 @@ See `plan.md` for the full living status. Summary:
 
 ## Branch strategy
 
-- `main` — stable, deployable
-- `integration/full-stack` — current working branch (this is where all real work lives as of 2026-06-24)
-- Feature branches should be short-lived, one per person, merged via PR to `integration/full-stack`
+- `main` — stable, deployable, and the active working branch
+- Feature branches should be short-lived, one per person, merged via PR to `main`
 
 Always open a PR — do not push directly to `main`.
