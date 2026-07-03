@@ -86,6 +86,8 @@ class UserProfile(BaseModel):
 
     companies_to_track: list[str] = Field(default_factory=list)
     tone: TonePreference = TonePreference.TECHNICAL
+    # Preferred depth from backend Preferences.length: "short" | "standard" | "deep"
+    length: str = "standard"
     digest_frequency: DigestFrequency = DigestFrequency.WEEKLY
 
     # Implicit-feedback weights for the ranker (F10).

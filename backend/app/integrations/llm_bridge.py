@@ -58,6 +58,7 @@ def user_to_profile(user: UserORM, prefs: PreferencesORM) -> UserProfile:
         regions=_safe_json_list(prefs.regions_json),
         companies_to_track=[],  # not modelled in backend prefs yet
         tone=_tone(prefs.tone),
+        length=prefs.length or "standard",
         digest_frequency=_frequency(prefs.frequency),
         topic_weights={},
     )

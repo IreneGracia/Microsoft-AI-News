@@ -20,7 +20,7 @@ interface Props {
   newsFont: string
   prefs: Prefs
   setPrefs: (p: Prefs) => void
-  onSave: () => void
+  onSave: (ok: boolean) => void
   user: User
   folderMode?: boolean
   onCreateFolder?: (folder: NewsFolder) => void
@@ -60,6 +60,7 @@ export default function PrefsDeck({ open, onClose, palette, displayFont, newsFon
     const bizSlugs   = new Set(TOPIC_GROUPS.find(g => g.id === 'business')?.items.map(i => i.id) ?? [])
     const regSlugs   = new Set(TOPIC_GROUPS.find(g => g.id === 'regulation')?.items.map(i => i.id) ?? [])
 
+    let saved = true
     try {
       await putPreferences({
         topics:          all.filter(t => topicSlugs.has(t)),
@@ -72,12 +73,16 @@ export default function PrefsDeck({ open, onClose, palette, displayFont, newsFon
         tone: (prefs.tone as 'technical' | 'business' | 'executive') ?? 'technical',
         newsletter_consent: prefs.newsletterConsent ?? false,
       })
-    } catch { /* best-effort — prefs live in local state even if API is down */ }
+    } catch {
+      // Prefs stay in local state, but the user must know the server rejected
+      // the save (e.g. newsletter opt-out or role change would silently not stick).
+      saved = false
+    }
 
     if (folderMode) {
       setShowSummary(true)
     } else {
-      onSave()  // closes the modal and triggers dashboard re-fetch via prefs.topics
+      onSave(saved)  // closes the modal and triggers dashboard re-fetch via prefs.topics
     }
   }
 
@@ -312,11 +317,6 @@ export default function PrefsDeck({ open, onClose, palette, displayFont, newsFon
                     </button>
                   )
                 })}
-              </div>
-              <div className="prefs-slider-row">
-                <label className="prefs-slider-label" style={{ color: palette.muted }}>Quiet ↔ Lively</label>
-                <input type="range" min="0" max="100" value={prefs.energy ?? 35}
-                  onChange={(e) => setPrefs({ ...prefs, energy: +e.target.value })} className="prefs-slider" />
               </div>
             </div>
           )}

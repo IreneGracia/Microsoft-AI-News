@@ -33,9 +33,9 @@ class Chatbot:
     ) -> ChatResponse:
         history = history or []
         pinned, effective_query = _resolve_pinned(query)
-        articles = _get_context_articles(query=effective_query, pinned_article=pinned)
+        articles = _get_context_articles(query=effective_query, pinned_article=pinned, user=user)
         trimmed_history = _trim_history(history, max_turns=6)
-        messages = build_chat_messages(effective_query, articles, trimmed_history, pinned=pinned)
+        messages = build_chat_messages(effective_query, articles, trimmed_history, pinned=pinned, user=user)
 
         answer, token_usage = self._llm.complete(
             system=CHATBOT_SYSTEM_PROMPT,
@@ -59,11 +59,11 @@ class Chatbot:
         """
         history = history or []
         pinned, effective_query = _resolve_pinned(query)
-        articles = _get_context_articles(query=effective_query, pinned_article=pinned)
+        articles = _get_context_articles(query=effective_query, pinned_article=pinned, user=user)
         yield "sources", articles
 
         trimmed_history = _trim_history(history, max_turns=6)
-        messages = build_chat_messages(effective_query, articles, trimmed_history, pinned=pinned)
+        messages = build_chat_messages(effective_query, articles, trimmed_history, pinned=pinned, user=user)
 
         for text, usage in self._llm.stream_complete(
             system=CHATBOT_SYSTEM_PROMPT,
@@ -119,13 +119,20 @@ def _get_context_articles(
     query: str = "",
     limit: int = 20,
     pinned_article: Article | None = None,
+    user: UserProfile | None = None,
 ) -> list[Article]:
     """
     Retrieve context articles for a chat query.
     Uses vector similarity search when embeddings are populated; falls back
     to recency-based retrieval when no embeddings exist yet.
+    When a user profile is given, candidates are re-ranked with the
+    personalization ranker so the user's topic/business/regulation/region
+    preferences bias which articles reach the prompt — a soft boost, not a
+    hard filter, so off-interest questions still find relevant articles.
     Source diversity is capped at 3 per publisher in both paths.
     """
+    from app.pipeline.personalization.ranker import rank_articles
+
     articles: list[Article] = []
 
     # Try vector search first — much better relevance than recency alone.
@@ -133,14 +140,22 @@ def _get_context_articles(
         try:
             from app.pipeline.rag.vector_store import ArticleVectorStore
             store = ArticleVectorStore()
-            pairs = store.retrieve(query, top_k=limit)
-            articles = [a for a, _ in pairs]
+            # Over-fetch when personalizing so the ranker has candidates to prefer.
+            pairs = store.retrieve(query, top_k=limit * 2 if user else limit)
+            if user and pairs:
+                articles = rank_articles(pairs, user, top_n=limit)
+            else:
+                articles = [a for a, _ in pairs]
         except Exception:
             log.debug("Vector search unavailable; falling back to recency retrieval")
 
     # Fall back to recency if vector search returned nothing.
     if not articles:
         articles = _recency_articles(limit)
+        if user and articles:
+            # No similarity signal here — constant 1.0 lets tag overlap,
+            # recency and source quality drive the ordering.
+            articles = rank_articles([(a, 1.0) for a in articles], user, top_n=limit)
 
     if pinned_article:
         pinned_id = pinned_article.id

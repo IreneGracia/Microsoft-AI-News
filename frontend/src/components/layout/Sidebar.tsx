@@ -24,6 +24,7 @@ interface Props {
   onDeleteFolder: (id: string) => void
   onAddFolder: (name: string) => void
   user: User
+  roleLabel?: string
   onLogout: () => void
 }
 
@@ -34,7 +35,7 @@ export default function Sidebar({
   onSelectThread, onNewThread, onDeleteThread,
   onNewChat, onDeleteGeneralThread,
   onDeleteFolder, onAddFolder,
-  user, onLogout,
+  user, roleLabel, onLogout,
 }: Props) {
   const [open, setOpen] = useState<Record<string, boolean>>({ chats: true, projects: true })
   const [expandedIds, setExpandedIds] = useState<Set<string>>(
@@ -301,7 +302,7 @@ export default function Sidebar({
           <div className="avatar" style={{ background: palette.accent, color: palette.bg }}>{initial}</div>
           <div className="user-meta">
             <div style={{ color: palette.ink }}>{user.name || 'Guest'}</div>
-            <div>{user.department || 'No department'}{regionLabel ? ' · ' + regionLabel : ''}</div>
+            <div>{roleLabel || user.department || 'No department'}{regionLabel ? ' · ' + regionLabel : ''}</div>
           </div>
           <button className="signout-btn" onClick={onLogout} title="Sign out" style={{ color: palette.muted }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">

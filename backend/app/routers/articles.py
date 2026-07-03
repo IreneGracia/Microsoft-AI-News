@@ -42,14 +42,16 @@ def _to_out(article: Article) -> ArticleOut:
 
 @router.get("", response_model=list[ArticleOut])
 def list_articles(
-    topics: str | None = Query(default=None, description="Comma-separated topic slugs"),
+    topics: str | None = Query(default=None, description="Comma-separated tag slugs (topic, business or regulation dimensions)"),
     limit: int = Query(default=24, ge=1, le=100),
     _user: User = Depends(current_user),
     db: Session = Depends(get_db),
 ) -> list[ArticleOut]:
     """
-    List recent articles, optionally filtered by topic tags.
-    Used by the frontend home screen to show real headlines.
+    List recent articles, optionally filtered by preference tags.
+    Used by the frontend home screen to show real headlines. The filter
+    accepts slugs from all three content dimensions so business and
+    regulation preferences surface matching articles, not just topics.
     """
     q = db.query(Article).filter(Article.published_at.isnot(None))
 
@@ -59,7 +61,7 @@ def list_articles(
             tagged_ids = (
                 db.query(ArticleTag.article_id)
                 .filter(
-                    ArticleTag.dimension == "topic",
+                    ArticleTag.dimension.in_(["topic", "business", "regulation_policy"]),
                     ArticleTag.slug.in_(topic_list),
                 )
                 .subquery()

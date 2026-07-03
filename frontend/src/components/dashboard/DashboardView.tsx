@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { listArticles, type ApiArticle } from '@/lib/api'
 import { FONTS } from '@/constants/fonts'
+import { TOPIC_GROUPS } from '@/constants/preferences'
 import type { Palette } from '@/types'
 
 interface Props {
@@ -12,23 +13,17 @@ interface Props {
   onAsk: (articleId: string, q: string) => void
 }
 
-const TOPIC_LABELS: Record<string, string> = {
-  artificial_intelligence_ml: 'AI & ML',
-  ai_tools_productivity: 'Dev Tools',
-  software_development: 'Software',
-  cloud_infrastructure: 'Cloud',
-  hardware_chips: 'Hardware',
-  cybersecurity: 'Security',
-  health_biotech: 'Biotech',
-  metaverse_xr: 'XR',
-  quantum_computing: 'Quantum',
-  fintech: 'Fintech',
-  robotics: 'Robotics',
-  sustainability_tech: 'Sustainability',
-  media_entertainment: 'Media',
-  enterprise_software: 'Enterprise',
-  policy_regulation: 'Policy',
-}
+// Labels come from the same taxonomy the preferences UI offers, so the
+// dashboard tabs always read exactly like the topics the user picked.
+const TOPIC_LABELS: Record<string, string> = Object.fromEntries(
+  TOPIC_GROUPS.flatMap((g) => g.items.map((i) => [i.id, i.label]))
+)
+
+// Article `topics` only carry the "topic" dimension, so only those
+// preference slugs can act as dashboard filter tabs.
+const TOPIC_DIM_SLUGS = new Set(
+  TOPIC_GROUPS.find((g) => g.id === 'topic')?.items.map((i) => i.id) ?? []
+)
 
 function labelForSlug(slug: string): string {
   if (TOPIC_LABELS[slug]) return TOPIC_LABELS[slug]
@@ -182,15 +177,20 @@ export default function DashboardView({ palette, displayFont, userTopics, onAsk 
   // Dashboard only shows articles that have an image
   const articles = tabFiltered.filter((a) => a.image_url)
 
-  // Derive tabs from all fetched articles (include articles without images for counts)
+  // Tabs mirror the topics the user picked in preferences. Only when the
+  // user hasn't chosen any do we fall back to the most common topics in
+  // the fetched articles.
+  const prefTabs = (userTopics ?? []).filter((t) => TOPIC_DIM_SLUGS.has(t))
   const topicCounts = allArticles.reduce<Record<string, number>>((acc, a) => {
     a.topics.forEach((t) => { acc[t] = (acc[t] ?? 0) + 1 })
     return acc
   }, {})
-  const topTabs = Object.entries(topicCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 6)
-    .map(([slug]) => slug)
+  const topTabs = prefTabs.length > 0
+    ? prefTabs
+    : Object.entries(topicCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+        .map(([slug]) => slug)
 
   const dateStr = new Date().toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric',
