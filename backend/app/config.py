@@ -122,9 +122,12 @@ class Settings(BaseSettings):
     llm_fast_model: str = "claude-haiku-4-5-20251001"
 
     # OpenAI
+    # gpt-5.4-nano is currently OpenAI's cheapest general-purpose chat model
+    # ($0.20 / $1.25 per 1M input/output tokens) — used for both chat and
+    # fast/cheap calls since token economy matters more here than raw quality.
     openai_api_key: str = ""
-    openai_model: str = "gpt-4o"
-    openai_fast_model: str = "gpt-4o-mini"
+    openai_model: str = "gpt-5.4-nano"
+    openai_fast_model: str = "gpt-5.4-nano"
 
     # Google Gemini — free tier available at aistudio.google.com
     # gemini-2.0-flash is the recommended model (generous free quota).

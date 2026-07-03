@@ -91,6 +91,7 @@ class Source:
 
     source_region: Optional[str] = None
     notes: str = ""
+    enabled: bool = True
 
     @property
     def needs_full_fetch(self) -> bool:
@@ -112,6 +113,8 @@ def load_sources() -> list[Source]:
 
     sources = []
     for s in data["sources"]:
+        if not s.get("enabled", True):
+            continue
         sources.append(Source(
             id=s["id"],
             name=s["name"],
@@ -127,6 +130,7 @@ def load_sources() -> list[Source]:
             regions=_slug_list(s.get("region_tags", [])),
             source_region=s.get("source_region"),
             notes=s.get("notes", ""),
+            enabled=True,
         ))
     return sources
 

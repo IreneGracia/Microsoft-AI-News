@@ -79,10 +79,15 @@ class ArticleCurator:
         articles: list[Article],
         top_n: int = 30,
         user: UserProfile | None = None,
+        min_priority: int | None = None,
     ) -> list[Article]:
         """
         Return up to `top_n` articles, sorted by LLM-assigned priority (highest first).
         If fewer articles are provided than `top_n`, all are returned as-is.
+
+        `min_priority`, if set, additionally drops any article scoring below that
+        threshold even if `top_n` hasn't been reached — so raising `top_n` widens
+        the ceiling without lowering the quality floor.
         """
         if len(articles) <= top_n:
             return articles
@@ -102,7 +107,10 @@ class ArticleCurator:
             raw, _usage = llm.complete(
                 system=_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=1024,
+                # Each selection entry ({"index": N, "priority": P}) costs ~15
+                # tokens of JSON; a flat 1024 cap truncated the response (and
+                # broke JSON parsing) once top_n grew past ~40.
+                max_tokens=max(1024, top_n * 40),
                 use_cache=False,
             )
             data = json.loads(raw)
@@ -126,7 +134,11 @@ class ArticleCurator:
         ]
         selected.sort(key=lambda x: x[1], reverse=True)
 
-        result = [a for a, _ in selected[:top_n]]
+        top = selected[:top_n]
+        if min_priority is not None:
+            top = [(a, p) for a, p in top if p >= min_priority]
+
+        result = [a for a, _ in top]
         log.info(
             "curator: selected %d/%d articles (top priority=%.0f)",
             len(result),

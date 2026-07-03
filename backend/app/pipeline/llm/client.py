@@ -146,8 +146,10 @@ class _AnthropicClient(_BaseLLMClient):
 # ---------------------------------------------------------------------------
 
 class _OpenAIClient(_BaseLLMClient):
-    # Pricing per million tokens (gpt-4o / gpt-4o-mini)
+    # Pricing per million tokens
     _PRICES = {
+        "gpt-5.4-nano": {"input": 0.20, "output": 1.25, "cached": 0.02},
+        "gpt-5.4-mini": {"input": 0.75, "output": 4.50, "cached": 0.075},
         "gpt-4o":      {"input": 2.50, "output": 10.00, "cached": 1.25},
         "gpt-4o-mini": {"input": 0.15, "output":  0.60, "cached": 0.075},
     }
@@ -172,7 +174,7 @@ class _OpenAIClient(_BaseLLMClient):
 
         response = self._client.chat.completions.create(
             model=model,
-            max_tokens=max_tokens,
+            max_completion_tokens=max_tokens,
             messages=full_messages,
         )
 
@@ -206,7 +208,7 @@ class _OpenAIClient(_BaseLLMClient):
         full_messages = [{"role": "system", "content": system}, *messages]
         stream = self._client.chat.completions.create(
             model=model,
-            max_tokens=max_tokens,
+            max_completion_tokens=max_tokens,
             messages=full_messages,
             stream=True,
             stream_options={"include_usage": True},
