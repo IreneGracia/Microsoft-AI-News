@@ -19,11 +19,11 @@ const TOPIC_LABELS: Record<string, string> = Object.fromEntries(
   TOPIC_GROUPS.flatMap((g) => g.items.map((i) => [i.id, i.label]))
 )
 
-// Article `topics` only carry the "topic" dimension, so only those
-// preference slugs can act as dashboard filter tabs.
-const TOPIC_DIM_SLUGS = new Set(
-  TOPIC_GROUPS.find((g) => g.id === 'topic')?.items.map((i) => i.id) ?? []
-)
+// Every tag slug on an article, across all dimensions (topic, business,
+// regulation…), so business/regulation preference tabs can filter too.
+function articleSlugs(a: ApiArticle): string[] {
+  return a.tags ? Object.values(a.tags).flat() : a.topics
+}
 
 function labelForSlug(slug: string): string {
   if (TOPIC_LABELS[slug]) return TOPIC_LABELS[slug]
@@ -172,15 +172,16 @@ export default function DashboardView({ palette, displayFont, userTopics, onAsk 
   const tabFiltered =
     activeTab === 'all'
       ? allArticles
-      : allArticles.filter((a) => a.topics.includes(activeTab))
+      : allArticles.filter((a) => articleSlugs(a).includes(activeTab))
 
   // Dashboard only shows articles that have an image
   const articles = tabFiltered.filter((a) => a.image_url)
 
-  // Tabs mirror the topics the user picked in preferences. Only when the
-  // user hasn't chosen any do we fall back to the most common topics in
-  // the fetched articles.
-  const prefTabs = (userTopics ?? []).filter((t) => TOPIC_DIM_SLUGS.has(t))
+  // Tabs mirror the preferences the user picked — across every dimension
+  // (topic, business, regulation), not just topics. Only when the user
+  // hasn't chosen any do we fall back to the most common topics in the
+  // fetched articles.
+  const prefTabs = (userTopics ?? []).filter((t) => t in TOPIC_LABELS)
   const topicCounts = allArticles.reduce<Record<string, number>>((acc, a) => {
     a.topics.forEach((t) => { acc[t] = (acc[t] ?? 0) + 1 })
     return acc

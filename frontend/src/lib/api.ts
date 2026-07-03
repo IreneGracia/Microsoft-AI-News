@@ -248,6 +248,8 @@ export interface ApiArticle {
   extract: string | null
   image_url: string | null
   topics: string[]
+  // Full multi-dimensional tagging: {dimension: [slug, ...]}
+  tags?: Record<string, string[]>
 }
 
 // ─── Folders ──────────────────────────────────────────────────────────────
