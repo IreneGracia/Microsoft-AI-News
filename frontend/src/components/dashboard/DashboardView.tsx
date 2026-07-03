@@ -248,10 +248,14 @@ export default function DashboardView({ palette, displayFont, userTopics, onAsk 
         <p className="dash2-empty" style={{ color: palette.muted }}>{error}</p>
       )}
 
-      {/* Empty */}
+      {/* Empty — distinguish "database is empty" from "no matches for this tab" */}
       {!loading && !error && articles.length === 0 && (
         <p className="dash2-empty" style={{ color: palette.muted }}>
-          No articles yet — run ingest first.
+          {allArticles.length === 0
+            ? 'No articles yet — run ingest first.'
+            : activeTab === 'all'
+              ? 'No stories to feature right now — check back after the next ingest.'
+              : `No ${labelForSlug(activeTab)} stories right now — they'll appear here as new articles come in.`}
         </p>
       )}
 
