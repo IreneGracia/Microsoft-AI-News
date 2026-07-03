@@ -115,60 +115,6 @@ def backfill_embeddings(authorization: str | None = Header(default=None)) -> dic
         return {"status": "error", "detail": str(exc)}
 
 
-@router.post("/retag-articles")
-def retag_articles_endpoint(authorization: str | None = Header(default=None)) -> dict:
-    """
-    One-shot: recompute per-article content tags (topic / business /
-    regulation) for EVERY article in the database, replacing the coarse
-    source-default tags they were ingested with. Regional tags are kept.
-    Safe to re-run — tagging is deterministic for unchanged content.
-    """
-    _require_worker_secret(authorization)
-    try:
-        from app.db.session import SessionLocal
-        from app.models import Article as ArticleORM, ArticleTag, Tag
-        from app.pipeline.ingestion.auto_tagger import _encode, tags_for_text
-
-        _CONTENT_DIMS = ("topic", "business", "regulation_policy")
-
-        with SessionLocal() as db:
-            rows = db.query(
-                ArticleORM.id, ArticleORM.title, ArticleORM.extract, ArticleORM.body
-            ).all()
-        if not rows:
-            return {"status": "ok", "retagged": 0}
-
-        valid = None  # loaded once inside the first write batch
-        total = 0
-        batch_size = 32
-        for i in range(0, len(rows), batch_size):
-            batch = rows[i : i + batch_size]
-            texts = [
-                ". ".join(p for p in (title, extract or "", (body or "")[:800]) if p).strip()
-                for (_, title, extract, body) in batch
-            ]
-            embeddings = _encode(texts)
-            with SessionLocal() as db:
-                if valid is None:
-                    valid = {(t.dimension, t.slug) for t in db.query(Tag.dimension, Tag.slug).all()}
-                for (article_id, _, _, _), embedding in zip(batch, embeddings):
-                    tags = tags_for_text(embedding)
-                    db.query(ArticleTag).filter(
-                        ArticleTag.article_id == article_id,
-                        ArticleTag.dimension.in_(_CONTENT_DIMS),
-                    ).delete(synchronize_session=False)
-                    for dimension, slugs in tags.items():
-                        for slug in slugs:
-                            if (dimension, slug) in valid:
-                                db.add(ArticleTag(article_id=article_id, dimension=dimension, slug=slug))
-                    total += 1
-                db.commit()
-
-        return {"status": "ok", "retagged": total}
-    except Exception as exc:
-        return {"status": "error", "detail": str(exc)}
-
-
 @router.post("/run-ingest")
 def run_ingest(
     background_tasks: BackgroundTasks,

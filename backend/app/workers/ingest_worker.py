@@ -75,12 +75,6 @@ def run() -> dict:
     curated = curator.curate(unique, top_n=100, min_priority=4)
     log.info("ingest_worker: %d articles after LLM curation", len(curated))
 
-    # Replace source-default content tags with per-article tags so
-    # preference filtering matches what each story is actually about.
-    from app.pipeline.ingestion.auto_tagger import retag_articles
-    tagged = retag_articles(curated)
-    log.info("ingest_worker: re-tagged %d articles with per-article content tags", tagged)
-
     try:
         saved = store.save_articles(curated)
     except Exception:

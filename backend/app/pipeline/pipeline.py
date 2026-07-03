@@ -54,11 +54,6 @@ class NewsPipeline:
         curated_articles = self._curator.curate(unique_articles, top_n=30, user=user)
         log.info("pipeline.curated", before=len(unique_articles), after=len(curated_articles))
 
-        # 3b. Per-article content tags (replaces source-default tags) so the
-        #     personalization ranker's tag-overlap signal is story-accurate.
-        from app.pipeline.ingestion.auto_tagger import retag_articles
-        retag_articles(curated_articles)
-
         # 4. Save curated articles to Postgres
         saved = self._store.save_articles(curated_articles)
         log.info("pipeline.saved", new_articles=saved)
