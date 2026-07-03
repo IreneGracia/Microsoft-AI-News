@@ -25,6 +25,19 @@ function articleSlugs(a: ApiArticle): string[] {
   return a.tags ? Object.values(a.tags).flat() : a.topics
 }
 
+// Slugs to display as pills: the three content dimensions, in a stable
+// order. Regional/role tags are excluded — they aren't preference tabs.
+function pillSlugs(a: ApiArticle, activeTab: string): string[] {
+  const slugs = a.tags
+    ? [...(a.tags.topic ?? []), ...(a.tags.business ?? []), ...(a.tags.regulation_policy ?? [])]
+    : a.topics
+  // Put the active tab's tag first so the reason an article is in the
+  // current tab is always visible, even after truncation.
+  return slugs.includes(activeTab)
+    ? [activeTab, ...slugs.filter((s) => s !== activeTab)]
+    : slugs
+}
+
 function labelForSlug(slug: string): string {
   if (TOPIC_LABELS[slug]) return TOPIC_LABELS[slug]
   return slug.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
@@ -45,9 +58,10 @@ interface CardProps {
   palette: Palette
   displayFont: string
   variant: 'featured' | 'side' | 'grid'
+  activeTab: string
 }
 
-function ArticleCard({ article, onAsk, palette, displayFont, variant }: CardProps) {
+function ArticleCard({ article, onAsk, palette, displayFont, variant, activeTab }: CardProps) {
   const [hovered, setHovered] = useState(false)
   const [imgError, setImgError] = useState(false)
   const isFeatured = variant === 'featured'
@@ -96,7 +110,7 @@ function ArticleCard({ article, onAsk, palette, displayFont, variant }: CardProp
 
         <div className="dash2-card-foot">
           <div className="dash2-topics">
-            {article.topics.slice(0, isFeatured ? 3 : 2).map((t) => (
+            {pillSlugs(article, activeTab).slice(0, isFeatured ? 3 : 2).map((t) => (
               <span
                 key={t}
                 className="dash2-topic-pill"
@@ -263,11 +277,11 @@ export default function DashboardView({ palette, displayFont, userTopics, onAsk 
       {!loading && featured && (
         <div className="dash2-content">
           <div className="dash2-bento">
-            <ArticleCard article={featured} onAsk={onAsk} palette={palette} displayFont={displayFont} variant="featured" />
+            <ArticleCard article={featured} onAsk={onAsk} palette={palette} displayFont={displayFont} variant="featured" activeTab={activeTab} />
             {sideCards.length > 0 && (
               <div className="dash2-side-col">
                 {sideCards.map((a) => (
-                  <ArticleCard key={a.id} article={a} onAsk={onAsk} palette={palette} displayFont={displayFont} variant="side" />
+                  <ArticleCard key={a.id} article={a} onAsk={onAsk} palette={palette} displayFont={displayFont} variant="side" activeTab={activeTab} />
                 ))}
               </div>
             )}
@@ -276,7 +290,7 @@ export default function DashboardView({ palette, displayFont, userTopics, onAsk 
           {gridCards.length > 0 && (
             <div className="dash2-grid">
               {gridCards.map((a) => (
-                <ArticleCard key={a.id} article={a} onAsk={onAsk} palette={palette} displayFont={displayFont} variant="grid" />
+                <ArticleCard key={a.id} article={a} onAsk={onAsk} palette={palette} displayFont={displayFont} variant="grid" activeTab={activeTab} />
               ))}
             </div>
           )}
