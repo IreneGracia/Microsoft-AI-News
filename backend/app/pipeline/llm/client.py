@@ -182,7 +182,9 @@ class _OpenAIClient(_BaseLLMClient):
         }
         if web_search:
             kwargs["model"] = self._WEB_SEARCH_MODEL
-            kwargs["web_search_options"] = {"search_context_size": "medium"}
+            # Via extra_body: the pinned openai SDK predates the
+            # web_search_options kwarg and rejects it client-side.
+            kwargs["extra_body"] = {"web_search_options": {"search_context_size": "medium"}}
         else:
             kwargs["model"] = model or settings.openai_model
 
@@ -223,7 +225,9 @@ class _OpenAIClient(_BaseLLMClient):
         }
         if web_search:
             kwargs["model"] = self._WEB_SEARCH_MODEL
-            kwargs["web_search_options"] = {"search_context_size": "medium"}
+            # Via extra_body: the pinned openai SDK predates the
+            # web_search_options kwarg and rejects it client-side.
+            kwargs["extra_body"] = {"web_search_options": {"search_context_size": "medium"}}
         else:
             kwargs["model"] = model or settings.openai_model
         stream = self._client.chat.completions.create(**kwargs)
