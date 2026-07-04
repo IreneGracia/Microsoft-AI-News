@@ -218,6 +218,7 @@ def build_chat_user_message(
     conversation_history: list[dict],
     pinned: Article | None = None,
     user: UserProfile | None = None,
+    followup: bool = False,
 ) -> str:
     """
     Build the user-turn content for the LLM.
@@ -227,7 +228,17 @@ def build_chat_user_message(
     - All other articles: up to 450 chars each (summary-level context)
     """
     if not retrieved_articles:
-        context_block = "(No articles available in the context window.)"
+        if followup:
+            # The question refers to the conversation, not a new topic —
+            # an ominous "no articles" banner makes the model wrongly
+            # decline instead of just using the history.
+            context_block = (
+                "(No retrieval needed — this request refers to the "
+                "conversation above. Answer it from the conversation "
+                "history; do not say you lack coverage.)"
+            )
+        else:
+            context_block = "(No articles available in the context window.)"
     else:
         parts: list[str] = []
         for i, a in enumerate(retrieved_articles):
@@ -256,6 +267,7 @@ def build_chat_messages(
     conversation_history: list[dict],
     pinned: Article | None = None,
     user: UserProfile | None = None,
+    followup: bool = False,
 ) -> list[dict]:
     """
     Build the messages array for the chat API call.
@@ -265,6 +277,6 @@ def build_chat_messages(
     messages = list(conversation_history)
     messages.append({
         "role": "user",
-        "content": build_chat_user_message(query, retrieved_articles, conversation_history, pinned=pinned, user=user),
+        "content": build_chat_user_message(query, retrieved_articles, conversation_history, pinned=pinned, user=user, followup=followup),
     })
     return messages

@@ -87,7 +87,7 @@ class Chatbot:
             )
             return ChatResponse(answer=answer, sources=[], token_cost=token_usage)
 
-        messages = build_chat_messages(effective_query, articles, trimmed_history, pinned=pinned, user=user)
+        messages = build_chat_messages(effective_query, articles, trimmed_history, pinned=pinned, user=user, followup=_is_conversational_followup(effective_query, history))
 
         answer, token_usage = self._llm.complete(
             system=CHATBOT_SYSTEM_PROMPT,
@@ -141,7 +141,7 @@ class Chatbot:
                     yield "done", TokenUsage()
                     return
 
-        messages = build_chat_messages(effective_query, articles, trimmed_history, pinned=pinned, user=user)
+        messages = build_chat_messages(effective_query, articles, trimmed_history, pinned=pinned, user=user, followup=_is_conversational_followup(effective_query, history))
 
         for text, usage in self._llm.stream_complete(
             system=CHATBOT_SYSTEM_PROMPT,
