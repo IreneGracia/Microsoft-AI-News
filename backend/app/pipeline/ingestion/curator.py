@@ -46,7 +46,7 @@ Respond ONLY with a valid JSON object. No prose, no markdown fences."""
 
 _USER_TEMPLATE = """Select the {top_n} most valuable articles from the list below.
 Assign a priority score from 1 (lowest) to 10 (highest).
-
+{reader_context}
 Return exactly this JSON schema:
 {{
   "selection": [
@@ -57,6 +57,28 @@ Return exactly this JSON schema:
 
 ARTICLES:
 {articles_block}"""
+
+_READER_CONTEXT_TEMPLATE = """
+READER CONTEXT — weight relevance to this specific reader above generic
+newsworthiness. An article that strongly matches their interests should
+outrank an equally newsworthy article that doesn't, even if the
+non-matching one is bigger news in the abstract:
+- Topics they follow: {topics}
+- Business/industry interest: {business}
+- Regions they care about: {regions}
+- Role: {role}
+"""
+
+
+def _build_reader_context(user: "UserProfile | None") -> str:
+    """Render the READER CONTEXT block, or '' if no user profile was given."""
+    if user is None:
+        return ""
+    topics = ", ".join(t.replace("_", " ") for t in user.topic_tags) or "none specified"
+    business = ", ".join(t.replace("_", " ") for t in user.business_tags) or "none specified"
+    regions = ", ".join(t.replace("_", " ") for t in user.regions) or "none specified"
+    role = (user.role or "unspecified").replace("_", " ")
+    return _READER_CONTEXT_TEMPLATE.format(topics=topics, business=business, regions=regions, role=role)
 
 
 class ArticleCurator:
@@ -100,7 +122,11 @@ class ArticleCurator:
             for i, a in enumerate(articles)
         )
 
-        prompt = _USER_TEMPLATE.format(top_n=top_n, articles_block=articles_block)
+        prompt = _USER_TEMPLATE.format(
+            top_n=top_n,
+            articles_block=articles_block,
+            reader_context=_build_reader_context(user),
+        )
 
         try:
             llm = self._get_llm()

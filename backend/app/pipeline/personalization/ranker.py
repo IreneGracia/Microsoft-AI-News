@@ -2,16 +2,22 @@
 Personalized article ranker.
 
 Scoring formula:
-  score = (semantic_similarity   * 0.35)
-        + (tag_overlap           * 0.25)
-        + (company_mention       * 0.20)
-        + (recency               * 0.10)
-        + (source_quality        * 0.10)
+  score = (semantic_similarity   * 0.4375)
+        + (tag_overlap           * 0.3125)
+        + (recency               * 0.125)
+        + (source_quality        * 0.125)
 
 `tag_overlap` is the union match across all four content dimensions
 (topic / business / regulation / regional). Weights can be overridden
 per user via UserProfile.topic_weights, updated over time from implicit
 feedback (clicks, reads).
+
+`company_mention` is not in the default weights — backend preferences
+don't yet collect which companies a user wants tracked
+(UserProfile.companies_to_track is always [] from user_to_profile()), so
+giving it a default weight would silently score every article 0 on that
+dimension. It stays available as an opt-in: set `topic_weights={"company": ...}`
+on a UserProfile and _company_score will contribute to the total again.
 """
 from __future__ import annotations
 
@@ -23,7 +29,6 @@ from app.pipeline.models import Article, UserProfile
 _DEFAULT_WEIGHTS = {
     "semantic": 0.35,
     "tags": 0.25,
-    "company": 0.20,
     "recency": 0.10,
     "source_quality": 0.10,
 }
@@ -84,7 +89,7 @@ def score_article(
     return (
         w["semantic"] * semantic_similarity
         + w["tags"] * _tag_overlap_score(article, user)
-        + w["company"] * _company_score(article, user)
+        + w.get("company", 0) * _company_score(article, user)
         + w["recency"] * _recency_score(article.published_at)
         + w["source_quality"] * _source_quality_score(article)
     )
@@ -94,10 +99,16 @@ def rank_articles(
     articles_with_similarity: list[tuple[Article, float]],
     user: UserProfile,
     top_n: int = 10,
+    max_per_source: int = 3,
 ) -> list[Article]:
     """
     Rank articles by personalized score and return the top_n.
     Sets article.relevance_score so downstream code can see the ranking signal.
+
+    Caps any single source at `max_per_source` articles so one publisher
+    can't fill the whole digest just because it happens to tag-match the
+    user's preferences well (mirrors the same cap in
+    app.pipeline.rag.vector_store._diversify_by_source).
     """
     scored: list[tuple[Article, float]] = []
     for article, similarity in articles_with_similarity:
@@ -106,4 +117,16 @@ def rank_articles(
         scored.append((article, ps))
 
     scored.sort(key=lambda x: x[1], reverse=True)
-    return [article for article, _ in scored[:top_n]]
+
+    per_source: dict[str, int] = {}
+    result: list[Article] = []
+    for article, _ in scored:
+        if len(result) >= top_n:
+            break
+        source_key = article.source or "unknown"
+        if per_source.get(source_key, 0) >= max_per_source:
+            continue
+        per_source[source_key] = per_source.get(source_key, 0) + 1
+        result.append(article)
+
+    return result
