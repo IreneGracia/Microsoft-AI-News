@@ -284,5 +284,8 @@ def _orm_to_pipeline(row: ArticleORM) -> PipelineArticle:
         business_tags=by_dim.get("business", []),
         regulation_tags=by_dim.get("regulation_policy", []),
         regions=by_dim.get("regional", []),
-        source_type=row.source.source_type if row.source else "secondary",
+        # Coalesce NULL source_type (e.g. demo/fallback sources) — the
+        # pipeline model requires a string, and a None here crashes
+        # retrieve(), silently degrading chat to the recency fallback.
+        source_type=(row.source.source_type if row.source else None) or "secondary",
     )

@@ -242,30 +242,7 @@ def chat_reply(
 
     response = chatbot.chat(query=query, user=profile, history=chat_history)
 
-    # Map pipeline source articles back to our ArticleORM rows by URL so
-    # citations carry our internal `article_id`s (frontend deep-link target).
-    citations: list[dict] = []
-    if response.sources:
-        urls = [a.url for a in response.sources if a.url]
-        by_url = {
-            row.url: row
-            for row in db.query(ArticleORM).filter(ArticleORM.url.in_(urls)).all()
-        }
-        for idx, src in enumerate(response.sources, start=1):
-            row = by_url.get(src.url)
-            if row is None:
-                continue
-            citations.append(
-                {
-                    "index": idx,
-                    "article_id": row.id,
-                    "title": row.title,
-                    "source": row.source.name if row.source else "",
-                    "url": row.url,
-                    "published_at": row.published_at.isoformat() if row.published_at else None,
-                    "image_url": row.image_url,
-                }
-            )
+    citations = _resolve_citations(db, response.sources, answer_text=response.answer)
 
     prompt_tokens = getattr(response.token_cost, "input_tokens", 0) or 0
     completion_tokens = getattr(response.token_cost, "output_tokens", 0) or 0
@@ -299,23 +276,37 @@ def stream_chat_reply(
     chat_history = [ChatMessage(role=r, content=c) for r, c in history]
 
     sources = []
+    answer_parts: list[str] = []
     for event_type, payload in chatbot.stream_chat(query=query, user=profile, history=chat_history):
         if event_type == "sources":
             sources = payload
         elif event_type == "token":
+            answer_parts.append(payload)
             yield "token", payload
         elif event_type == "done":
             usage = payload
-            citations = _resolve_citations(db, sources)
+            citations = _resolve_citations(db, sources, answer_text="".join(answer_parts))
             prompt_tokens = getattr(usage, "input_tokens", 0) or 0
             completion_tokens = getattr(usage, "output_tokens", 0) or 0
             yield "done", citations, prompt_tokens, completion_tokens
 
 
-def _resolve_citations(db: Session, sources: list) -> list[dict]:
-    """Map pipeline source articles to backend ArticleORM rows for citation links."""
+def _resolve_citations(db: Session, sources: list, answer_text: str | None = None) -> list[dict]:
+    """
+    Map pipeline source articles to backend ArticleORM rows for citation links.
+
+    When `answer_text` is given, only articles the answer actually cites
+    (their URL appears in the text — the prompt mandates verbatim markdown
+    links) become citations. Retrieval candidates the model ignored are
+    dropped, so off-topic answers no longer get decorated with mismatched
+    "sources".
+    """
     if not sources:
         return []
+    if answer_text is not None:
+        sources = [a for a in sources if a.url and a.url in answer_text]
+        if not sources:
+            return []
     urls = [a.url for a in sources if a.url]
     by_url = {
         row.url: row
