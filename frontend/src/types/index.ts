@@ -51,6 +51,7 @@ export interface NewsCard {
   tone: 'lead' | 'calm'
   tag: string
   image_url?: string | null
+  url?: string
 }
 
 export interface ChatMessage {

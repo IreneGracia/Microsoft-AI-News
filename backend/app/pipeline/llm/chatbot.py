@@ -115,6 +115,13 @@ def _find_article_by_title(title_fragment: str) -> Article | None:
         return _orm_to_pipeline(row) if row else None
 
 
+# Cosine-similarity floor for chat context. Below this, an article is not
+# actually about the question — returning it just decorates off-topic answers
+# with mismatched "sources". Empirically, related query/article pairs score
+# well above 0.4 with all-MiniLM-L6-v2; unrelated pairs sit under ~0.25.
+_MIN_CONTEXT_SIMILARITY = 0.30
+
+
 def _get_context_articles(
     query: str = "",
     limit: int = 20,
@@ -124,7 +131,10 @@ def _get_context_articles(
     """
     Retrieve context articles for a chat query.
     Uses vector similarity search when embeddings are populated; falls back
-    to recency-based retrieval when no embeddings exist yet.
+    to recency-based retrieval only when search itself is unavailable (no
+    embeddings / store error). When search ran but nothing clears the
+    similarity floor, this returns [] — the question is off-corpus and the
+    prompt is expected to say so rather than cite irrelevant articles.
     When a user profile is given, candidates are re-ranked with the
     personalization ranker so the user's topic/business/regulation/region
     preferences bias which articles reach the prompt — a soft boost, not a
@@ -134,6 +144,7 @@ def _get_context_articles(
     from app.pipeline.personalization.ranker import rank_articles
 
     articles: list[Article] = []
+    search_ran = False
 
     # Try vector search first — much better relevance than recency alone.
     if query:
@@ -142,15 +153,19 @@ def _get_context_articles(
             store = ArticleVectorStore()
             # Over-fetch when personalizing so the ranker has candidates to prefer.
             pairs = store.retrieve(query, top_k=limit * 2 if user else limit)
-            if user and pairs:
-                articles = rank_articles(pairs, user, top_n=limit)
+            # Empty result = no embeddings indexed yet → treat as unavailable.
+            search_ran = bool(pairs)
+            relevant = [(a, s) for a, s in pairs if s >= _MIN_CONTEXT_SIMILARITY]
+            if user and relevant:
+                articles = rank_articles(relevant, user, top_n=limit)
             else:
-                articles = [a for a, _ in pairs]
+                articles = [a for a, _ in relevant]
         except Exception:
             log.debug("Vector search unavailable; falling back to recency retrieval")
 
-    # Fall back to recency if vector search returned nothing.
-    if not articles:
+    # Recency fallback ONLY when search couldn't run — not when it ran and
+    # found nothing relevant (that would resurrect off-topic citations).
+    if not articles and not search_ran:
         articles = _recency_articles(limit)
         if user and articles:
             # No similarity signal here — constant 1.0 lets tag overlap,
