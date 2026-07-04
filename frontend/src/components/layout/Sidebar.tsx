@@ -252,7 +252,7 @@ export default function Sidebar({
                               <button
                                 className={`thread-item ${t.id === activeThreadId && f.id === activeFolderId ? 'active' : ''}`}
                                 onClick={() => onSelectThread(f.id, t.id)}
-                                style={{ color: palette.ink, paddingLeft: 28 }}
+                                style={{ color: palette.ink }}
                                 {...threadDragProps(t.id, f.id)}
                               >
                                 <span className="t-title">{t.title}</span>

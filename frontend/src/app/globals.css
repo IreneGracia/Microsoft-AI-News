@@ -128,7 +128,16 @@ kbd {
 .folder-row:hover .folder-del { display: flex; }
 .folder-del:hover { background: rgba(0,0,0,0.07); }
 .folder-group { margin-bottom: 2px; }
-.folder-threads { padding-left: 0; margin-bottom: 4px; }
+/* Threads inside a project folder: indented under the folder name with a
+   tree line, and tighter vertically than the general Recents list. */
+.folder-threads {
+  margin: 0 0 4px 22px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(0, 0, 0, 0.1);
+}
+.folder-threads .thread-item { padding: 5px 8px; margin-bottom: 0; }
+.folder-threads .t-time,
+.folder-threads .t-context { margin-top: 0; }
 .new-thread-btn {
   display: flex; align-items: center; gap: 6px;
   width: 100%; background: transparent; border: 0;

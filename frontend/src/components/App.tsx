@@ -585,7 +585,7 @@ export default function App() {
           if (v === 'chat') { setActiveFolderId(null); setActiveThreadId(''); setMessages([]) }
         }}
         onSelectThread={(fId, tId) => { setCurrentView('chat'); handleSelectThread(fId, tId) }}
-        onNewThread={addThread}
+        onNewThread={(folderId) => { setCurrentView('chat'); addThread(folderId) }}
         onDeleteThread={deleteThread}
         onNewChat={() => { setCurrentView('chat'); addGeneralThread() }}
         onDeleteGeneralThread={deleteGeneralThread}
