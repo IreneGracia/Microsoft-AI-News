@@ -23,6 +23,8 @@ interface Props {
   onDeleteGeneralThread: (threadId: string) => void
   onDeleteFolder: (id: string) => void
   onAddFolder: (name: string) => void
+  onRenameFolder: (id: string, name: string) => void
+  onMoveThread: (sessionId: string, fromFolderId: string | null, toFolderId: string) => void
   user: User
   roleLabel?: string
   onLogout: () => void
@@ -35,6 +37,7 @@ export default function Sidebar({
   onSelectThread, onNewThread, onDeleteThread,
   onNewChat, onDeleteGeneralThread,
   onDeleteFolder, onAddFolder,
+  onRenameFolder, onMoveThread,
   user, roleLabel, onLogout,
 }: Props) {
   const [open, setOpen] = useState<Record<string, boolean>>({ chats: true, projects: true })
@@ -44,6 +47,45 @@ export default function Sidebar({
   const [addingFolder, setAddingFolder] = useState(false)
   const [folderInput, setFolderInput] = useState('')
   const folderInputRef = useRef<HTMLInputElement>(null)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameInput, setRenameInput] = useState('')
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
+
+  const submitRename = () => {
+    const name = renameInput.trim()
+    if (name && renamingId) onRenameFolder(renamingId, name)
+    setRenamingId(null)
+    setRenameInput('')
+  }
+
+  const threadDragProps = (threadId: string, fromFolderId: string | null) => ({
+    draggable: true,
+    onDragStart: (e: React.DragEvent) => {
+      e.dataTransfer.setData('application/x-mai-thread', JSON.stringify({ sessionId: threadId, fromFolderId }))
+      e.dataTransfer.effectAllowed = 'move'
+    },
+  })
+
+  const folderDropProps = (folderId: string) => ({
+    onDragOver: (e: React.DragEvent) => {
+      if (e.dataTransfer.types.includes('application/x-mai-thread')) {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+        setDragOverFolderId(folderId)
+      }
+    },
+    onDragLeave: () => setDragOverFolderId((id) => (id === folderId ? null : id)),
+    onDrop: (e: React.DragEvent) => {
+      setDragOverFolderId(null)
+      const raw = e.dataTransfer.getData('application/x-mai-thread')
+      if (!raw) return
+      e.preventDefault()
+      try {
+        const { sessionId, fromFolderId } = JSON.parse(raw)
+        onMoveThread(sessionId, fromFolderId ?? null, folderId)
+      } catch { /* malformed payload — ignore */ }
+    },
+  })
 
   useEffect(() => {
     if (addingFolder) folderInputRef.current?.focus()
@@ -157,22 +199,50 @@ export default function Sidebar({
                   const expanded = expandedIds.has(f.id)
                   return (
                     <li key={f.id} className="folder-group">
-                      <div className="folder-row">
-                        <button className="folder-item" onClick={() => toggleFolder(f.id)} style={{ color: palette.ink }}>
-                          {chevron(expanded)}
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.55 }}>
-                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                          </svg>
-                          <div className="folder-meta">
-                            <span className="folder-name">{f.name}</span>
+                      <div className="folder-row" {...folderDropProps(f.id)}
+                        style={dragOverFolderId === f.id
+                          ? { outline: `1.5px dashed ${palette.accent}`, outlineOffset: -1, borderRadius: 8, background: 'rgba(0,0,0,0.045)' }
+                          : undefined}>
+                        {renamingId === f.id ? (
+                          <div className="add-folder-form" style={{ flex: 1 }}>
+                            <input
+                              className="add-folder-input"
+                              autoFocus
+                              value={renameInput}
+                              onChange={(e) => setRenameInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') submitRename()
+                                if (e.key === 'Escape') { setRenamingId(null); setRenameInput('') }
+                              }}
+                              onBlur={submitRename}
+                              style={{ color: palette.ink, borderColor: palette.accent }}
+                            />
                           </div>
-                        </button>
-                        <button className="folder-del" title="Remove folder" style={{ color: palette.muted }}
-                          onClick={(e) => { e.stopPropagation(); onDeleteFolder(f.id) }}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                            <path d="M18 6L6 18M6 6l12 12"/>
-                          </svg>
-                        </button>
+                        ) : (
+                          <>
+                            <button className="folder-item" onClick={() => toggleFolder(f.id)} style={{ color: palette.ink }}>
+                              {chevron(expanded)}
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.55 }}>
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                              </svg>
+                              <div className="folder-meta">
+                                <span className="folder-name">{f.name}</span>
+                              </div>
+                            </button>
+                            <button className="folder-del" title="Rename folder" style={{ color: palette.muted }}
+                              onClick={(e) => { e.stopPropagation(); setRenamingId(f.id); setRenameInput(f.name) }}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/>
+                              </svg>
+                            </button>
+                            <button className="folder-del" title="Remove folder" style={{ color: palette.muted }}
+                              onClick={(e) => { e.stopPropagation(); onDeleteFolder(f.id) }}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                                <path d="M18 6L6 18M6 6l12 12"/>
+                              </svg>
+                            </button>
+                          </>
+                        )}
                       </div>
 
                       {expanded && (
@@ -183,6 +253,7 @@ export default function Sidebar({
                                 className={`thread-item ${t.id === activeThreadId && f.id === activeFolderId ? 'active' : ''}`}
                                 onClick={() => onSelectThread(f.id, t.id)}
                                 style={{ color: palette.ink, paddingLeft: 28 }}
+                                {...threadDragProps(t.id, f.id)}
                               >
                                 <span className="t-title">{t.title}</span>
                                 <span className="t-time t-context" style={{ color: palette.muted }}>{t.time}</span>
@@ -203,7 +274,7 @@ export default function Sidebar({
                               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                                 <path d="M12 5v14M5 12h14"/>
                               </svg>
-                              New conversation
+                              New chat
                             </button>
                           </li>
                         </ul>
@@ -267,6 +338,7 @@ export default function Sidebar({
                     className={`thread-item ${t.id === activeThreadId && folderId === activeFolderId ? 'active' : ''}`}
                     onClick={() => onSelectThread(folderId, t.id)}
                     style={{ color: palette.ink }}
+                    {...threadDragProps(t.id, folderId)}
                   >
                     <span className="t-title">{t.title}</span>
                     {folderName && (

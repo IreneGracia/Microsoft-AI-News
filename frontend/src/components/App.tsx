@@ -17,7 +17,7 @@ import { PREF_ROLES } from '@/constants/preferences'
 import { FONTS, NEWS_FONTS } from '@/constants/fonts'
 import { BENCHMARK_CARDS, NEWS_BY_TOPIC, TOPIC_SUGGESTIONS, TWEAKS_DEFAULTS } from '@/constants/data'
 import { readSession, writeSession, apiUserToLocal } from '@/lib/session'
-import { getToken, setToken, getMe, createSession, deleteSession, streamMessage, listSessions, getPreferences, getSession, getSaved, saveArticle, unsaveArticle, getFolders, createFolder, deleteFolder, createFolderThread, deleteFolderThread, type SseCitation, type ApiArticle, type ApiFolder } from '@/lib/api'
+import { getToken, setToken, getMe, createSession, deleteSession, streamMessage, listSessions, getPreferences, getSession, getSaved, saveArticle, unsaveArticle, getFolders, createFolder, deleteFolder, renameFolder, moveThreadToFolder, createFolderThread, deleteFolderThread, type SseCitation, type ApiArticle, type ApiFolder } from '@/lib/api'
 import { useTweaks } from '@/hooks/useTweaks'
 import type { ChatMessage, NewsCard, NewsFolder, Prefs, Thread, User } from '@/types'
 
@@ -96,7 +96,7 @@ function _apiFolderToLocal(f: ApiFolder): NewsFolder {
     topics: f.topics,
     frequency: (f.frequency as NewsFolder['frequency']) || 'daily',
     keywords: f.keywords,
-    threads: f.threads.map((t) => ({ id: t.id, title: t.title ?? 'Untitled', time: t.time })),
+    threads: f.threads.map((t) => ({ id: t.id, title: t.title ?? 'New chat', time: t.time })),
   }
 }
 
@@ -238,16 +238,16 @@ export default function App() {
   const addThread = async (folderId: string) => {
     const folder = folders.find((f) => f.id === folderId)
     const briefing = folder ? buildFolderBriefing(folder) : []
-    const firstTitle = folder?.topics[0]
-      ? (briefing[0]?.cards?.[0]?.title?.slice(0, 40) ?? 'New conversation')
-      : 'New conversation'
+    // No title yet — like general chats, the thread is named from the first
+    // message (client-side below; the backend backfills the same way).
+    const placeholder = 'New chat'
     setMessages(briefing)
     if (getToken()) {
       try {
-        const thread = await createFolderThread(folderId, firstTitle)
+        const thread = await createFolderThread(folderId)
         sessionMap.current.set(thread.id, thread.id)
         setFolders((fs) => fs.map((f) => f.id === folderId
-          ? { ...f, threads: [{ id: thread.id, title: thread.title ?? firstTitle, time: thread.time }, ...f.threads] }
+          ? { ...f, threads: [{ id: thread.id, title: thread.title ?? placeholder, time: thread.time }, ...f.threads] }
           : f
         ))
         setActiveFolderId(folderId)
@@ -255,7 +255,7 @@ export default function App() {
       } catch {
         const id = 'th' + Date.now()
         setFolders((fs) => fs.map((f) => f.id === folderId
-          ? { ...f, threads: [{ id, title: firstTitle, time: 'Now' }, ...f.threads] }
+          ? { ...f, threads: [{ id, title: placeholder, time: 'Now' }, ...f.threads] }
           : f
         ))
         setActiveFolderId(folderId)
@@ -264,7 +264,7 @@ export default function App() {
     } else {
       const id = 'th' + Date.now()
       setFolders((fs) => fs.map((f) => f.id === folderId
-        ? { ...f, threads: [{ id, title: firstTitle, time: 'Now' }, ...f.threads] }
+        ? { ...f, threads: [{ id, title: placeholder, time: 'Now' }, ...f.threads] }
         : f
       ))
       setActiveFolderId(folderId)
@@ -357,7 +357,7 @@ export default function App() {
       const generalOnly = sessions.filter((s) => !folderSessionIds.has(s.id))
       setGeneralThreads(generalOnly.map((s) => ({
         id: s.id,
-        title: s.title ?? 'Untitled chat',
+        title: s.title ?? 'New chat',
         time: new Date(s.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       })))
       generalOnly.forEach((s) => sessionMap.current.set(s.id, s.id))
@@ -456,6 +456,22 @@ export default function App() {
         setBusy(false)
         return
       }
+    }
+
+    // Folder threads start untitled — name them from the first message,
+    // mirroring general chats (the backend backfills the stored title too).
+    if (effectiveFolderId !== null && sessionId) {
+      setFolders((fs) => fs.map((f) => f.id === effectiveFolderId
+        ? {
+            ...f,
+            threads: f.threads.map((t) =>
+              t.id === sessionId && (!t.title || t.title === 'New chat')
+                ? { ...t, title: text.slice(0, 60) }
+                : t
+            ),
+          }
+        : f
+      ))
     }
 
     let streamedText = ''
@@ -591,6 +607,52 @@ export default function App() {
         onDeleteFolder={async (id) => {
             setFolders((fs) => fs.filter((f) => f.id !== id))
             if (getToken()) deleteFolder(id).catch(() => {})
+          }}
+        onRenameFolder={async (id, name) => {
+            const prev = folders.find((f) => f.id === id)?.name
+            setFolders((fs) => fs.map((f) => f.id === id ? { ...f, name } : f))
+            if (getToken()) {
+              try {
+                await renameFolder(id, name)
+              } catch {
+                setFolders((fs) => fs.map((f) => f.id === id ? { ...f, name: prev ?? f.name } : f))
+                setToast('Could not rename folder — try again.')
+              }
+            }
+          }}
+        onMoveThread={async (sessionId, fromFolderId, toFolderId) => {
+            if (fromFolderId === toFolderId) return
+            const moved = fromFolderId === null
+              ? generalThreads.find((t) => t.id === sessionId)
+              : folders.find((f) => f.id === fromFolderId)?.threads.find((t) => t.id === sessionId)
+            if (!moved) return
+            // Optimistic move
+            if (fromFolderId === null) {
+              setGeneralThreads((ts) => ts.filter((t) => t.id !== sessionId))
+            } else {
+              setFolders((fs) => fs.map((f) => f.id === fromFolderId
+                ? { ...f, threads: f.threads.filter((t) => t.id !== sessionId) } : f))
+            }
+            setFolders((fs) => fs.map((f) => f.id === toFolderId
+              ? { ...f, threads: [moved, ...f.threads.filter((t) => t.id !== sessionId)] } : f))
+            if (activeThreadId === sessionId) setActiveFolderId(toFolderId)
+            if (getToken()) {
+              try {
+                await moveThreadToFolder(toFolderId, sessionId)
+                setToast('Chat moved.')
+              } catch {
+                // Roll back
+                setFolders((fs) => fs.map((f) => f.id === toFolderId
+                  ? { ...f, threads: f.threads.filter((t) => t.id !== sessionId) } : f))
+                if (fromFolderId === null) {
+                  setGeneralThreads((ts) => [moved, ...ts.filter((t) => t.id !== sessionId)])
+                } else {
+                  setFolders((fs) => fs.map((f) => f.id === fromFolderId
+                    ? { ...f, threads: [moved, ...f.threads.filter((t) => t.id !== sessionId)] } : f))
+                }
+                setToast('Could not move chat — try again.')
+              }
+            }
           }}
         user={user}
         roleLabel={PREF_ROLES.find((r) => r.id === prefs.role)?.label}

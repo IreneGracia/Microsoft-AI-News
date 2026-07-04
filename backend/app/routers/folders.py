@@ -199,6 +199,34 @@ def create_thread(
     )
 
 
+@router.put("/{folder_id}/threads/{session_id}", response_model=FolderThreadOut)
+def attach_thread(
+    folder_id: str,
+    session_id: str,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> FolderThreadOut:
+    """
+    Attach an EXISTING chat session to a folder (drag & drop in the UI).
+    Move semantics: a chat lives in at most one folder, so any previous
+    folder link is removed first. Idempotent.
+    """
+    folder = _load_folder(db, user, folder_id)
+    sess = db.get(ChatSession, session_id)
+    if sess is None or sess.user_id != user.id or sess.deleted_at is not None:
+        raise problem(status=404, title="Session not found")
+    db.query(UserFolderThread).filter(
+        UserFolderThread.session_id == session_id
+    ).delete(synchronize_session=False)
+    db.add(UserFolderThread(folder_id=folder.id, session_id=session_id))
+    db.commit()
+    return FolderThreadOut(
+        id=sess.id,
+        title=sess.title,
+        time=sess.updated_at.strftime("%-d %b") if sess.updated_at else "Now",
+    )
+
+
 @router.delete(
     "/{folder_id}/threads/{session_id}",
     status_code=status.HTTP_204_NO_CONTENT,

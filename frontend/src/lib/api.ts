@@ -289,6 +289,20 @@ export async function deleteFolder(folderId: string): Promise<void> {
   await apiFetch(`/me/folders/${folderId}`, { method: 'DELETE' })
 }
 
+export async function renameFolder(folderId: string, name: string): Promise<ApiFolder> {
+  const res = await apiFetch(`/me/folders/${folderId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ name }),
+  })
+  return res.json()
+}
+
+/** Attach an existing chat session to a folder (drag & drop). Move semantics. */
+export async function moveThreadToFolder(folderId: string, sessionId: string): Promise<ApiFolderThread> {
+  const res = await apiFetch(`/me/folders/${folderId}/threads/${sessionId}`, { method: 'PUT' })
+  return res.json()
+}
+
 export async function createFolderThread(folderId: string, title?: string): Promise<ApiFolderThread> {
   const res = await apiFetch(`/me/folders/${folderId}/threads`, {
     method: 'POST',
