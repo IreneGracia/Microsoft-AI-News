@@ -338,6 +338,7 @@ def post_message(
                 prefs=user_prefs,
                 query=user_content,
                 history=history_tuples,
+                web_search=body.web_search,
             ):
                 if event[0] == "token":
                     chunk = event[1]

@@ -144,6 +144,7 @@ export async function streamMessage(
     onDone: (messageId: string) => void
     onError: (err: Error) => void
   },
+  opts?: { webSearch?: boolean },
 ): Promise<void> {
   const token = getToken()
   const res = await fetch(`${API_BASE}/me/sessions/${sessionId}/messages`, {
@@ -152,7 +153,7 @@ export async function streamMessage(
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, web_search: opts?.webSearch ?? false }),
   })
 
   if (!res.ok || !res.body) {

@@ -286,6 +286,17 @@ export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>(() => tw.preloadDemo ? buildBenchmarkConvo() : [])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
+  // Web-search fallback toggle: when ON and retrieval finds no matching
+  // articles, the chatbot answers from a live web search instead of
+  // replying "no coverage". Persisted so the choice survives reloads.
+  const [webSearch, setWebSearch] = useState(() => {
+    try { return localStorage.getItem('mai_web_search') === '1' } catch { return false }
+  })
+  const toggleWebSearch = () => setWebSearch((v) => {
+    const next = !v
+    try { localStorage.setItem('mai_web_search', next ? '1' : '0') } catch { /* ignore */ }
+    return next
+  })
   const [toast, setToast] = useState('')
   const scrollRef = useRef<HTMLElement>(null)
 
@@ -485,7 +496,7 @@ export default function App() {
           : msg))
         setBusy(false)
       },
-    })
+    }, { webSearch })
   }
 
   const handleAction = (kind: string, card: NewsCard) => {
@@ -656,7 +667,8 @@ export default function App() {
 
         {currentView === 'chat' && (
           <div className="composer-wrap">
-            <Composer value={input} setValue={setInput} onSend={() => send()} palette={palette} disabled={busy} />
+            <Composer value={input} setValue={setInput} onSend={() => send()} palette={palette} disabled={busy}
+              webSearch={webSearch} onToggleWebSearch={toggleWebSearch} />
           </div>
         )}
       </main>

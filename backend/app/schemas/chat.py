@@ -51,3 +51,7 @@ class MessageIn(BaseModel):
     """Body for POST /me/sessions/{id}/messages — what the user typed."""
 
     content: str = Field(min_length=1, max_length=8000)
+    # Opt-in web-search fallback: when true and retrieval finds nothing
+    # relevant in the article database, the model may answer from a live
+    # web search instead of replying "no coverage".
+    web_search: bool = False

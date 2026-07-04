@@ -154,6 +154,11 @@ class _OpenAIClient(_BaseLLMClient):
         "gpt-4o-mini": {"input": 0.15, "output":  0.60, "cached": 0.075},
     }
 
+    # Chat can fall back to a live web search when the article DB has no
+    # coverage — only the OpenAI provider implements this.
+    supports_web_search = True
+    _WEB_SEARCH_MODEL = "gpt-4o-search-preview"
+
     def __init__(self):
         if not settings.openai_api_key:
             raise ValueError("OPENAI_API_KEY is not set")
@@ -166,17 +171,22 @@ class _OpenAIClient(_BaseLLMClient):
         model: str | None = None,
         max_tokens: int = 1500,
         use_cache: bool = True,  # OpenAI caching is automatic; flag is accepted but ignored
+        web_search: bool = False,
     ) -> tuple[str, TokenUsage]:
-        model = model or settings.openai_model
-
         # OpenAI uses a "system" role message rather than a separate system param
         full_messages = [{"role": "system", "content": system}, *messages]
 
-        response = self._client.chat.completions.create(
-            model=model,
-            max_completion_tokens=max_tokens,
-            messages=full_messages,
-        )
+        kwargs: dict = {
+            "max_completion_tokens": max_tokens,
+            "messages": full_messages,
+        }
+        if web_search:
+            kwargs["model"] = self._WEB_SEARCH_MODEL
+            kwargs["web_search_options"] = {"search_context_size": "medium"}
+        else:
+            kwargs["model"] = model or settings.openai_model
+
+        response = self._client.chat.completions.create(**kwargs)
 
         u = response.usage
         # OpenAI reports cached tokens under prompt_tokens_details
@@ -203,16 +213,20 @@ class _OpenAIClient(_BaseLLMClient):
             max_tokens=max_tokens,
         )
 
-    def stream_complete(self, system, messages, model=None, max_tokens=1500):
-        model = model or settings.openai_model
+    def stream_complete(self, system, messages, model=None, max_tokens=1500, web_search=False):
         full_messages = [{"role": "system", "content": system}, *messages]
-        stream = self._client.chat.completions.create(
-            model=model,
-            max_completion_tokens=max_tokens,
-            messages=full_messages,
-            stream=True,
-            stream_options={"include_usage": True},
-        )
+        kwargs: dict = {
+            "max_completion_tokens": max_tokens,
+            "messages": full_messages,
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        }
+        if web_search:
+            kwargs["model"] = self._WEB_SEARCH_MODEL
+            kwargs["web_search_options"] = {"search_context_size": "medium"}
+        else:
+            kwargs["model"] = model or settings.openai_model
+        stream = self._client.chat.completions.create(**kwargs)
         final_usage = TokenUsage()
         for chunk in stream:
             if getattr(chunk, "usage", None):

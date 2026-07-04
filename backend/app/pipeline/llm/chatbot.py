@@ -11,9 +11,9 @@ from datetime import datetime, timezone
 
 from app.db.session import SessionLocal
 from app.models import Article as ArticleORM
-from app.pipeline.models import Article, ChatMessage, ChatResponse, UserProfile
+from app.pipeline.models import Article, ChatMessage, ChatResponse, TokenUsage, UserProfile
 from app.pipeline.llm.client import LLMClient
-from app.pipeline.llm.prompts import CHATBOT_SYSTEM_PROMPT, build_chat_messages
+from app.pipeline.llm.prompts import CHATBOT_SYSTEM_PROMPT, WEB_SEARCH_ADDENDUM, build_chat_messages
 from app.config import settings
 
 log = logging.getLogger(__name__)
@@ -25,16 +25,39 @@ class Chatbot:
     def __init__(self, llm_client: LLMClient | None = None):
         self._llm = llm_client or LLMClient()
 
+    def _should_web_search(self, web_search: bool, articles: list[Article], pinned: Article | None) -> bool:
+        """Web fallback only when the user opted in, retrieval found nothing
+        relevant, there's no pinned article, and the provider supports it."""
+        return (
+            web_search
+            and not articles
+            and pinned is None
+            and getattr(self._llm, "supports_web_search", False)
+        )
+
     def chat(
         self,
         query: str,
         user: UserProfile,
         history: list[ChatMessage] | None = None,
+        web_search: bool = False,
     ) -> ChatResponse:
         history = history or []
         pinned, effective_query = _resolve_pinned(query)
         articles = _get_context_articles(query=effective_query, pinned_article=pinned, user=user)
         trimmed_history = _trim_history(history, max_turns=6)
+
+        if self._should_web_search(web_search, articles, pinned):
+            messages = build_chat_messages(effective_query, [], trimmed_history, user=user)
+            answer, token_usage = self._llm.complete(
+                system=CHATBOT_SYSTEM_PROMPT + WEB_SEARCH_ADDENDUM,
+                messages=messages,
+                max_tokens=settings.max_tokens_chat,
+                use_cache=True,
+                web_search=True,
+            )
+            return ChatResponse(answer=answer, sources=[], token_cost=token_usage)
+
         messages = build_chat_messages(effective_query, articles, trimmed_history, pinned=pinned, user=user)
 
         answer, token_usage = self._llm.complete(
@@ -50,6 +73,7 @@ class Chatbot:
         query: str,
         user: UserProfile,
         history: list[ChatMessage] | None = None,
+        web_search: bool = False,
     ):
         """
         Yields:
@@ -63,6 +87,31 @@ class Chatbot:
         yield "sources", articles
 
         trimmed_history = _trim_history(history, max_turns=6)
+
+        if self._should_web_search(web_search, articles, pinned):
+            messages = build_chat_messages(effective_query, [], trimmed_history, user=user)
+            emitted = False
+            try:
+                for text, usage in self._llm.stream_complete(
+                    system=CHATBOT_SYSTEM_PROMPT + WEB_SEARCH_ADDENDUM,
+                    messages=messages,
+                    max_tokens=settings.max_tokens_chat,
+                    web_search=True,
+                ):
+                    if text:
+                        emitted = True
+                        yield "token", text
+                    if usage is not None:
+                        yield "done", usage
+                return
+            except Exception:
+                log.warning("web-search completion failed; falling back to no-context answer", exc_info=True)
+                if emitted:
+                    # A partial web answer already streamed — close out
+                    # rather than answering twice.
+                    yield "done", TokenUsage()
+                    return
+
         messages = build_chat_messages(effective_query, articles, trimmed_history, pinned=pinned, user=user)
 
         for text, usage in self._llm.stream_complete(

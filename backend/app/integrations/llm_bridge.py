@@ -255,6 +255,7 @@ def stream_chat_reply(
     prefs: PreferencesORM,
     query: str,
     history: list[tuple[str, str]],
+    web_search: bool = False,
 ):
     """
     Streaming chat. Yields events for the SSE handler:
@@ -277,7 +278,7 @@ def stream_chat_reply(
 
     sources = []
     answer_parts: list[str] = []
-    for event_type, payload in chatbot.stream_chat(query=query, user=profile, history=chat_history):
+    for event_type, payload in chatbot.stream_chat(query=query, user=profile, history=chat_history, web_search=web_search):
         if event_type == "sources":
             sources = payload
         elif event_type == "token":

@@ -199,6 +199,15 @@ Angle the analysis toward what this reader can act on, but always answer the act
 """
 
 
+WEB_SEARCH_ADDENDUM = """
+
+WEB SEARCH MODE — the curated article database has no coverage for this question:
+- If the question is in scope (technology / business news), answer it from live web search results, citing each claim inline as a markdown link [Site](URL) exactly like article citations.
+- Open with one short note that this comes from a live web search because the curated news feed has no coverage.
+- ALL SCOPE rules above still apply unchanged: an off-topic question gets the same one-sentence decline — never use web results to answer it.
+"""
+
+
 def build_chat_user_message(
     query: str,
     retrieved_articles: list[Article],
