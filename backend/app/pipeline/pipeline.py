@@ -63,8 +63,10 @@ class NewsPipeline:
         saved = self._store.save_articles(curated_articles)
         log.info("pipeline.saved", new_articles=saved)
 
-        # 5. Personalized ranking directly on curated articles
-        results = [(a, 1.0) for a in curated_articles]
+        # 5. Personalized ranking — real semantic similarity against the
+        #    user's declared interests, not a constant stub.
+        interest_query = self._build_interest_query(user)
+        results = _score_similarity(self._store, interest_query, curated_articles)
         ranked = rank_articles(results, user, top_n=12)
         log.info("pipeline.ranked", top_n=len(ranked))
 
@@ -88,3 +90,39 @@ class NewsPipeline:
         if user.companies_to_track:
             parts += user.companies_to_track[:2]
         return " ".join(parts) + " latest news"
+
+
+def _score_similarity(store, interest_query: str, articles: list) -> list[tuple]:
+    """
+    Embed the user's interest query and each curated article with the same
+    model, then score by cosine similarity — real relevance, not a constant.
+
+    Only works when `store` is embedding-capable (ArticleVectorStore, what
+    digest_worker.py actually injects). Falls back to a constant 1.0 for the
+    plain ArticleStore used in tests, or if embedding fails for any reason —
+    ranking still runs on tag/recency/source-quality alone in that case.
+    """
+    encode = getattr(store, "_encode", None)
+    if encode is None or not articles:
+        return [(a, 1.0) for a in articles]
+
+    texts = [interest_query] + [
+        f"{a.title}\n\n{(a.content or '')[:1500]}" for a in articles
+    ]
+    try:
+        embeddings = encode(texts)
+    except Exception:
+        log.warning("pipeline.interest_query_embedding_failed")
+        return [(a, 1.0) for a in articles]
+
+    query_vec, article_vecs = embeddings[0], embeddings[1:]
+    return [(article, _cosine(query_vec, vec)) for article, vec in zip(articles, article_vecs)]
+
+
+def _cosine(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = sum(x * x for x in a) ** 0.5
+    norm_b = sum(y * y for y in b) ** 0.5
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return dot / (norm_a * norm_b)
