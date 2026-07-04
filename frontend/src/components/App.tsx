@@ -85,6 +85,7 @@ function _apiArticleToCard(a: ApiArticle): NewsCard {
     tone: 'calm',
     tag: a.source,
     image_url: a.image_url,
+    url: a.url,
   }
 }
 
@@ -390,6 +391,7 @@ export default function App() {
                   tone: j === 0 ? 'lead' as const : 'calm' as const,
                   tag: c.source,
                   image_url: (c as { image_url?: string | null }).image_url,
+                  url: c.url,
                 }))
               : undefined,
           })))
@@ -469,6 +471,7 @@ export default function App() {
               tone: (i === 0 && sliced.length !== 2) ? 'lead' as const : 'calm' as const,
               tag: c.source,
               image_url: c.image_url,
+              url: c.url,
             }))
           : undefined
         setMessages((m) => m.map((msg) => msg.id === thinkingId
@@ -486,7 +489,14 @@ export default function App() {
   }
 
   const handleAction = (kind: string, card: NewsCard) => {
-    if (kind === 'read') setToast(`Opening ${card.source}…`)
+    if (kind === 'read') {
+      if (card.url) {
+        window.open(card.url, '_blank', 'noopener,noreferrer')
+      } else {
+        // Demo/mock cards have no source URL to open
+        setToast(`No link available for ${card.source}.`)
+      }
+    }
     if (kind === 'more') setToast(`Pulling threads on "${card.tag}"…`)
   }
 
