@@ -7,6 +7,7 @@ specific article and inject it at the top of the context with full content.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timezone
 
 from app.db.session import SessionLocal
@@ -20,19 +21,47 @@ log = logging.getLogger(__name__)
 
 _TELL_ME_MORE_PREFIX = "Tell me more about: "
 
+# Conversational follow-ups ("summarise the above", "shorten that answer")
+# refer to the chat itself, not a news topic — retrieval scores them near
+# zero, but they must be answered from history, never via web search.
+_FOLLOWUP_RE = re.compile(
+    r"\b(summari[sz]e|shorten|rephrase|reword|simplif\w*|condense|tl;?dr|"
+    r"elaborate|expand on|bullet[- ]?points?|"
+    r"the above|above (news|answer|article|stor(y|ies)|text|message)|"
+    r"you (just )?(say|said|wrote|write|mentioned|shared|told)|your (last|previous) (answer|message|reply)|"
+    r"(that|this|it|the) (news|answer|summary|article|stor(y|ies)|reply) above)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_conversational_followup(query: str, history: list) -> bool:
+    """True when the question is about the conversation, not a new topic."""
+    return bool(history) and bool(_FOLLOWUP_RE.search(query))
+
 
 class Chatbot:
     def __init__(self, llm_client: LLMClient | None = None):
         self._llm = llm_client or LLMClient()
 
-    def _should_web_search(self, web_search: bool, articles: list[Article], pinned: Article | None) -> bool:
+    def _should_web_search(
+        self,
+        web_search: bool,
+        articles: list[Article],
+        pinned: Article | None,
+        query: str = "",
+        history: list[ChatMessage] | None = None,
+    ) -> bool:
         """Web fallback only when the user opted in, retrieval found nothing
-        relevant, there's no pinned article, and the provider supports it."""
+        relevant, there's no pinned article, the provider supports it, AND the
+        question isn't a conversational follow-up (those are answered from
+        history — rerouting them to web search re-researches the topic and
+        drags in sources the user never saw)."""
         return (
             web_search
             and not articles
             and pinned is None
             and getattr(self._llm, "supports_web_search", False)
+            and not _is_conversational_followup(query, history or [])
         )
 
     def chat(
@@ -47,7 +76,7 @@ class Chatbot:
         articles = _get_context_articles(query=effective_query, pinned_article=pinned, user=user)
         trimmed_history = _trim_history(history, max_turns=6)
 
-        if self._should_web_search(web_search, articles, pinned):
+        if self._should_web_search(web_search, articles, pinned, effective_query, history):
             messages = build_chat_messages(effective_query, [], trimmed_history, user=user)
             answer, token_usage = self._llm.complete(
                 system=CHATBOT_SYSTEM_PROMPT + WEB_SEARCH_ADDENDUM,
@@ -88,7 +117,7 @@ class Chatbot:
 
         trimmed_history = _trim_history(history, max_turns=6)
 
-        if self._should_web_search(web_search, articles, pinned):
+        if self._should_web_search(web_search, articles, pinned, effective_query, history):
             messages = build_chat_messages(effective_query, [], trimmed_history, user=user)
             emitted = False
             try:
