@@ -64,6 +64,43 @@ class Chatbot:
             and not _is_conversational_followup(query, history or [])
         )
 
+    def _web_query_in_scope(self, query: str) -> bool:
+        """
+        Cheap scope gate that runs BEFORE the web-search model is chosen.
+
+        The search-preview model is tuned to answer whatever it's given with
+        search results and follows scope instructions unreliably (it happily
+        returned a dictionary definition for a swear word). So scope is
+        enforced in code: a fast yes/no classification with the mini model.
+        Fails CLOSED — if classification errors, no web search happens and
+        the normal model (which respects scope rules) handles the message.
+        """
+        complete_fast = getattr(self._llm, "complete_fast", None)
+        if complete_fast is None:
+            return False
+        try:
+            raw, _ = complete_fast(
+                system=(
+                    "You are a strict scope classifier for a technology and "
+                    "business news assistant. Reply with exactly YES or NO."
+                ),
+                messages=[{
+                    "role": "user",
+                    "content": (
+                        "Should a technology/business news assistant answer this "
+                        "user message? Say YES only if it is a genuine question "
+                        "about technology, business, or the economy. Say NO for "
+                        "anything else (other topics, single words, profanity, "
+                        "chit-chat).\n\nMessage: " + query[:500]
+                    ),
+                }],
+                max_tokens=3,
+            )
+            return raw.strip().upper().startswith("Y")
+        except Exception:
+            log.warning("web scope classification failed; skipping web search", exc_info=True)
+            return False
+
     def chat(
         self,
         query: str,
@@ -76,7 +113,8 @@ class Chatbot:
         articles = _get_context_articles(query=effective_query, pinned_article=pinned, user=user)
         trimmed_history = _trim_history(history, max_turns=6)
 
-        if self._should_web_search(web_search, articles, pinned, effective_query, history):
+        if (self._should_web_search(web_search, articles, pinned, effective_query, history)
+                and self._web_query_in_scope(effective_query)):
             messages = build_chat_messages(effective_query, [], trimmed_history, user=user)
             answer, token_usage = self._llm.complete(
                 system=CHATBOT_SYSTEM_PROMPT + WEB_SEARCH_ADDENDUM,
@@ -117,7 +155,8 @@ class Chatbot:
 
         trimmed_history = _trim_history(history, max_turns=6)
 
-        if self._should_web_search(web_search, articles, pinned, effective_query, history):
+        if (self._should_web_search(web_search, articles, pinned, effective_query, history)
+                and self._web_query_in_scope(effective_query)):
             messages = build_chat_messages(effective_query, [], trimmed_history, user=user)
             emitted = False
             try:
