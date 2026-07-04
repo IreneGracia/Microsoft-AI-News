@@ -175,7 +175,11 @@ WHAT YOU DON'T DO:
 
 
 _LENGTH_GUIDANCE = {
-    "short": "Keep answers brief and decision-focused — lead with the takeaway, skip background the reader can infer.",
+    "short": (
+        "BRIEF MODE — hard limit: at most 3 short paragraphs, roughly 120 words total. "
+        "Cover only the 2-3 most important points, one sentence each of analysis, "
+        "no per-story breakdowns, no closing offers to elaborate."
+    ),
     "standard": "Balance brevity with context — enough detail to act on, no padding.",
     "deep": "Go deep — include technical specifics, background context, and second-order implications.",
 }
@@ -258,12 +262,18 @@ def build_chat_user_message(
             )
         context_block = "\n\n---\n\n".join(parts)
 
+    # Depth is repeated AFTER the question — instructions at the end of the
+    # prompt are followed far more reliably than one line buried mid-profile.
+    length_line = ""
+    if user is not None:
+        length_line = f"\nRESPONSE LENGTH: {_LENGTH_GUIDANCE.get(user.length, _LENGTH_GUIDANCE['standard'])}"
+
     return f"""{_profile_block(user)}RETRIEVED CONTEXT:
 {context_block}
 
 ---
 
-USER QUESTION: {query}
+USER QUESTION: {query}{length_line}
 """
 
 
