@@ -51,7 +51,9 @@ class NewsPipeline:
         # 3. LLM editorial curation — selects the 30 most newsworthy articles,
         #    filtering out low-quality posts and thematic duplicates before they
         #    ever reach the vector store.
-        curated_articles = self._curator.curate(unique_articles, top_n=30, user=user)
+        # min_priority=4 gives digests the same quality floor as ingest —
+        # and guarantees the editor runs even when the fetch pool is small.
+        curated_articles = self._curator.curate(unique_articles, top_n=30, user=user, min_priority=4)
         log.info("pipeline.curated", before=len(unique_articles), after=len(curated_articles))
 
         # 3b. Per-article content tags (replaces source-default tags) so the

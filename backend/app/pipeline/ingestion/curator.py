@@ -111,8 +111,14 @@ class ArticleCurator:
         threshold even if `top_n` hasn't been reached — so raising `top_n` widens
         the ceiling without lowering the quality floor.
         """
-        if len(articles) <= top_n:
+        # Small pools may skip the LLM only when no quality floor was
+        # requested. With a floor, the editor must still score everything —
+        # otherwise a thin fetch (e.g. narrow user interests) bypasses
+        # curation entirely and unfiltered articles leak through.
+        if len(articles) <= top_n and min_priority is None:
             return articles
+        if not articles:
+            return []
 
         articles_block = "\n".join(
             f'  <article index="{i}" source="{a.source}">'
