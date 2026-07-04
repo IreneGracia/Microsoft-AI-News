@@ -22,7 +22,7 @@ Your job is to write personalized tech news digests for Microsoft employees.
 RULES — follow every one without exception:
 1. Every claim must be followed by an inline citation: [Source Name](URL)
 2. Never invent facts. If the article doesn't say it, don't write it.
-3. Be concise: each article summary is 2–3 sentences maximum.
+3. Be concise: keep each article summary within the length requested in the user message.
 4. Rank articles by business relevance to the reader's role and interests.
 5. No filler phrases ("In today's fast-paced world...", "As we all know...").
 6. No SEO-style repetition. One key insight per article.
@@ -56,6 +56,13 @@ def build_newsletter_user_message(
     elif user.tone == TonePreference.TECHNICAL:
         tone_note = "Write for a technical audience — include implementation details."
 
+    # Summary length follows the user's depth preference (Preferences.length).
+    summary_spec = {
+        "short": "1-2 sentence",
+        "standard": "2-3 sentence",
+        "deep": "3-5 sentence, technically detailed",
+    }.get(user.length, "2-3 sentence")
+
     articles_block = "\n\n".join(
         f"[ARTICLE {i+1}]\nTitle: {a.title}\nSource: {a.source}\nURL: {a.url}\n"
         f"Published: {a.published_at.strftime('%Y-%m-%d')}\n\nContent:\n{a.content[:800]}"
@@ -80,7 +87,7 @@ def build_newsletter_user_message(
 TASK:
 1. Select the {top_n} most relevant articles for this user from the list below.
 2. Rank them from most to least relevant (rank 1 = most important).
-3. For each, write a 2-3 sentence personalized summary with inline citations.
+3. For each, write a {summary_spec} personalized summary with inline citations.
 4. Write a 1-sentence personalized intro for the digest.
 
 Return a JSON object with this exact schema:
@@ -92,7 +99,7 @@ Return a JSON object with this exact schema:
       "title": "<original title>",
       "url": "<original url>",
       "source": "<source name>",
-      "summary": "<2-3 sentence summary with inline citation>",
+      "summary": "<{summary_spec} summary with inline citation>",
       "reason": "<1 sentence: why this is relevant to this user>"
     }},
     ...
@@ -152,11 +159,45 @@ WHAT YOU DON'T DO:
 """
 
 
+_LENGTH_GUIDANCE = {
+    "short": "Keep answers brief and decision-focused — lead with the takeaway, skip background the reader can infer.",
+    "standard": "Balance brevity with context — enough detail to act on, no padding.",
+    "deep": "Go deep — include technical specifics, background context, and second-order implications.",
+}
+
+
+def _profile_block(user: UserProfile | None) -> str:
+    """
+    Compact reader-profile section injected into the user turn (not the
+    system prompt, which stays stable for prompt caching).
+    """
+    if user is None:
+        return ""
+    interests = ", ".join(
+        s.replace("_", " ")
+        for s in (user.topic_tags + user.business_tags + user.regulation_tags)
+    ) or "general technology"
+    role = (user.role or "not specified").replace("_", " ")
+    depth = _LENGTH_GUIDANCE.get(user.length, _LENGTH_GUIDANCE["standard"])
+    return f"""READER PROFILE — tailor the answer to this reader:
+- Role: {role}
+- Preferred tone: {user.tone.value}
+- Interests: {interests}
+- Regions of interest: {', '.join(r.replace('_', ' ') for r in user.regions) or 'global'}
+- Depth: {depth}
+Angle the analysis toward what this reader can act on, but always answer the actual question — even when it falls outside their listed interests.
+
+---
+
+"""
+
+
 def build_chat_user_message(
     query: str,
     retrieved_articles: list[Article],
     conversation_history: list[dict],
     pinned: Article | None = None,
+    user: UserProfile | None = None,
 ) -> str:
     """
     Build the user-turn content for the LLM.
@@ -180,7 +221,7 @@ def build_chat_user_message(
             )
         context_block = "\n\n---\n\n".join(parts)
 
-    return f"""RETRIEVED CONTEXT:
+    return f"""{_profile_block(user)}RETRIEVED CONTEXT:
 {context_block}
 
 ---
@@ -194,6 +235,7 @@ def build_chat_messages(
     retrieved_articles: list[Article],
     conversation_history: list[dict],
     pinned: Article | None = None,
+    user: UserProfile | None = None,
 ) -> list[dict]:
     """
     Build the messages array for the chat API call.
@@ -203,6 +245,6 @@ def build_chat_messages(
     messages = list(conversation_history)
     messages.append({
         "role": "user",
-        "content": build_chat_user_message(query, retrieved_articles, conversation_history, pinned=pinned),
+        "content": build_chat_user_message(query, retrieved_articles, conversation_history, pinned=pinned, user=user),
     })
     return messages

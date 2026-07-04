@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { listArticles, type ApiArticle } from '@/lib/api'
 import { FONTS } from '@/constants/fonts'
+import { TOPIC_GROUPS } from '@/constants/preferences'
 import type { Palette } from '@/types'
 
 interface Props {
@@ -12,22 +13,29 @@ interface Props {
   onAsk: (articleId: string, q: string) => void
 }
 
-const TOPIC_LABELS: Record<string, string> = {
-  artificial_intelligence_ml: 'AI & ML',
-  ai_tools_productivity: 'Dev Tools',
-  software_development: 'Software',
-  cloud_infrastructure: 'Cloud',
-  hardware_chips: 'Hardware',
-  cybersecurity: 'Security',
-  health_biotech: 'Biotech',
-  metaverse_xr: 'XR',
-  quantum_computing: 'Quantum',
-  fintech: 'Fintech',
-  robotics: 'Robotics',
-  sustainability_tech: 'Sustainability',
-  media_entertainment: 'Media',
-  enterprise_software: 'Enterprise',
-  policy_regulation: 'Policy',
+// Labels come from the same taxonomy the preferences UI offers, so the
+// dashboard tabs always read exactly like the topics the user picked.
+const TOPIC_LABELS: Record<string, string> = Object.fromEntries(
+  TOPIC_GROUPS.flatMap((g) => g.items.map((i) => [i.id, i.label]))
+)
+
+// Every tag slug on an article, across all dimensions (topic, business,
+// regulation…), so business/regulation preference tabs can filter too.
+function articleSlugs(a: ApiArticle): string[] {
+  return a.tags ? Object.values(a.tags).flat() : a.topics
+}
+
+// Slugs to display as pills: the three content dimensions, in a stable
+// order. Regional/role tags are excluded — they aren't preference tabs.
+function pillSlugs(a: ApiArticle, activeTab: string): string[] {
+  const slugs = a.tags
+    ? [...(a.tags.topic ?? []), ...(a.tags.business ?? []), ...(a.tags.regulation_policy ?? [])]
+    : a.topics
+  // Put the active tab's tag first so the reason an article is in the
+  // current tab is always visible, even after truncation.
+  return slugs.includes(activeTab)
+    ? [activeTab, ...slugs.filter((s) => s !== activeTab)]
+    : slugs
 }
 
 function labelForSlug(slug: string): string {
@@ -50,9 +58,10 @@ interface CardProps {
   palette: Palette
   displayFont: string
   variant: 'featured' | 'side' | 'grid'
+  activeTab: string
 }
 
-function ArticleCard({ article, onAsk, palette, displayFont, variant }: CardProps) {
+function ArticleCard({ article, onAsk, palette, displayFont, variant, activeTab }: CardProps) {
   const [hovered, setHovered] = useState(false)
   const [imgError, setImgError] = useState(false)
   const isFeatured = variant === 'featured'
@@ -101,7 +110,7 @@ function ArticleCard({ article, onAsk, palette, displayFont, variant }: CardProp
 
         <div className="dash2-card-foot">
           <div className="dash2-topics">
-            {article.topics.slice(0, isFeatured ? 3 : 2).map((t) => (
+            {pillSlugs(article, activeTab).slice(0, isFeatured ? 3 : 2).map((t) => (
               <span
                 key={t}
                 className="dash2-topic-pill"
@@ -177,20 +186,26 @@ export default function DashboardView({ palette, displayFont, userTopics, onAsk 
   const tabFiltered =
     activeTab === 'all'
       ? allArticles
-      : allArticles.filter((a) => a.topics.includes(activeTab))
+      : allArticles.filter((a) => articleSlugs(a).includes(activeTab))
 
   // Dashboard only shows articles that have an image
   const articles = tabFiltered.filter((a) => a.image_url)
 
-  // Derive tabs from all fetched articles (include articles without images for counts)
+  // Tabs mirror the preferences the user picked — across every dimension
+  // (topic, business, regulation), not just topics. Only when the user
+  // hasn't chosen any do we fall back to the most common topics in the
+  // fetched articles.
+  const prefTabs = (userTopics ?? []).filter((t) => t in TOPIC_LABELS)
   const topicCounts = allArticles.reduce<Record<string, number>>((acc, a) => {
     a.topics.forEach((t) => { acc[t] = (acc[t] ?? 0) + 1 })
     return acc
   }, {})
-  const topTabs = Object.entries(topicCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 6)
-    .map(([slug]) => slug)
+  const topTabs = prefTabs.length > 0
+    ? prefTabs
+    : Object.entries(topicCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+        .map(([slug]) => slug)
 
   const dateStr = new Date().toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric',
@@ -247,10 +262,14 @@ export default function DashboardView({ palette, displayFont, userTopics, onAsk 
         <p className="dash2-empty" style={{ color: palette.muted }}>{error}</p>
       )}
 
-      {/* Empty */}
+      {/* Empty — distinguish "database is empty" from "no matches for this tab" */}
       {!loading && !error && articles.length === 0 && (
         <p className="dash2-empty" style={{ color: palette.muted }}>
-          No articles yet — run ingest first.
+          {allArticles.length === 0
+            ? 'No articles yet — run ingest first.'
+            : activeTab === 'all'
+              ? 'No stories to feature right now — check back after the next ingest.'
+              : `No ${labelForSlug(activeTab)} stories right now — they'll appear here as new articles come in.`}
         </p>
       )}
 
@@ -258,11 +277,11 @@ export default function DashboardView({ palette, displayFont, userTopics, onAsk 
       {!loading && featured && (
         <div className="dash2-content">
           <div className="dash2-bento">
-            <ArticleCard article={featured} onAsk={onAsk} palette={palette} displayFont={displayFont} variant="featured" />
+            <ArticleCard article={featured} onAsk={onAsk} palette={palette} displayFont={displayFont} variant="featured" activeTab={activeTab} />
             {sideCards.length > 0 && (
               <div className="dash2-side-col">
                 {sideCards.map((a) => (
-                  <ArticleCard key={a.id} article={a} onAsk={onAsk} palette={palette} displayFont={displayFont} variant="side" />
+                  <ArticleCard key={a.id} article={a} onAsk={onAsk} palette={palette} displayFont={displayFont} variant="side" activeTab={activeTab} />
                 ))}
               </div>
             )}
@@ -271,7 +290,7 @@ export default function DashboardView({ palette, displayFont, userTopics, onAsk 
           {gridCards.length > 0 && (
             <div className="dash2-grid">
               {gridCards.map((a) => (
-                <ArticleCard key={a.id} article={a} onAsk={onAsk} palette={palette} displayFont={displayFont} variant="grid" />
+                <ArticleCard key={a.id} article={a} onAsk={onAsk} palette={palette} displayFont={displayFont} variant="grid" activeTab={activeTab} />
               ))}
             </div>
           )}

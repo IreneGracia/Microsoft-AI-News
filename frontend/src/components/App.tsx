@@ -13,6 +13,7 @@ import PrefsDeck from '@/components/preferences/PrefsDeck'
 import SavedView from '@/components/saved/SavedView'
 import { TweaksPanel, TweakSection, TweakSelect, TweakSlider, TweakToggle, TweakText } from '@/components/ui/TweaksPanel'
 import { PALETTES } from '@/constants/palettes'
+import { PREF_ROLES } from '@/constants/preferences'
 import { FONTS, NEWS_FONTS } from '@/constants/fonts'
 import { BENCHMARK_CARDS, NEWS_BY_TOPIC, TOPIC_SUGGESTIONS, TWEAKS_DEFAULTS } from '@/constants/data'
 import { readSession, writeSession, apiUserToLocal } from '@/lib/session'
@@ -121,7 +122,7 @@ export default function App() {
   const [prefsOpen, setPrefsOpen] = useState(false)
   const [prefs, setPrefs] = useState<Prefs>({
     role: 'for_engineers_technical_depth', region: 'europe', topics: [],
-    depth: 'deep', delivery: ['daily'], keywords: '', tone: 'technical', energy: 35,
+    depth: 'deep', delivery: ['daily'], keywords: '', tone: 'technical',
   })
   const [folders, setFolders] = useState<NewsFolder[]>([])
 
@@ -321,14 +322,17 @@ export default function App() {
     if (!user || !getToken()) return
 
     getPreferences().then((p) => {
+      // The UI keeps one flat selection list; the API stores it split by dimension.
+      const allTags = [...p.topics, ...p.business_tags, ...p.regulation_tags]
       setPrefs((curr) => ({
         ...curr,
-        topics: p.topics.length > 0 ? p.topics : curr.topics,
+        topics: allTags.length > 0 ? allTags : curr.topics,
         region: p.regions[0] ?? curr.region,
         role: p.role ?? curr.role,
         depth: p.length ?? curr.depth,
         delivery: [p.frequency],
         tone: p.tone ?? curr.tone,
+        newsletterConsent: p.newsletter_consent,
       }))
     }).catch(() => {})
 
@@ -568,6 +572,7 @@ export default function App() {
             if (getToken()) deleteFolder(id).catch(() => {})
           }}
         user={user}
+        roleLabel={PREF_ROLES.find((r) => r.id === prefs.role)?.label}
         onLogout={() => { writeSession(null); setToken(null); sessionMap.current.clear(); setUser(null) }}
       />
 
@@ -674,21 +679,22 @@ export default function App() {
               setToast(`Folder "${localFolder.name}" created.`)
             }
           }}
-        onSave={() => {
+        onSave={(ok) => {
           setPrefsOpen(false)
-          setToast('Preferences saved.')
+          setToast(ok ? 'Preferences saved.' : 'Could not save preferences — try again.')
           // Re-fetch from API so `prefs.topics` reflects what was actually stored,
           // which triggers DashboardView to re-fetch with the new topic filter.
           if (getToken()) {
             getPreferences().then((p) => {
               setPrefs((curr) => ({
                 ...curr,
-                topics: p.topics,
+                topics: [...p.topics, ...p.business_tags, ...p.regulation_tags],
                 region: p.regions[0] ?? curr.region,
                 role: p.role ?? curr.role,
                 depth: p.length ?? curr.depth,
                 delivery: [p.frequency],
                 tone: p.tone ?? curr.tone,
+                newsletterConsent: p.newsletter_consent,
               }))
             }).catch(() => {})
           }

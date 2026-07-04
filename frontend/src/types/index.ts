@@ -75,7 +75,6 @@ export interface Prefs {
   delivery?: string[]
   keywords?: string
   tone?: string
-  energy?: number
   newsletterConsent?: boolean
 }
 
