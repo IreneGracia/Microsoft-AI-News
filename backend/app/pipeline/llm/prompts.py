@@ -86,6 +86,8 @@ def build_newsletter_user_message(
 
 TASK:
 1. Select the {top_n} most relevant articles for this user from the list below.
+   Each article may appear AT MOST ONCE — never repeat a URL. If fewer than
+   {top_n} are genuinely relevant, return fewer rather than repeating any.
 2. Rank them from most to least relevant (rank 1 = most important).
 3. For each, write a {summary_spec} personalized summary with inline citations.
 4. Write a 1-sentence personalized intro for the digest.
